@@ -19,7 +19,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             api_key: None,
-            default_model: "rainy-coder-1".to_string(),
+            default_model: "moonshotai/kimi-k2-instruct-0905".to_string(),
             theme: "dark".to_string(),
             max_tokens: Some(4096),
             temperature: Some(0.7),
