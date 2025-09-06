@@ -1,0 +1,24 @@
+[package]
+name = "rainy-cli"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+rainy-sdk = "0.1.0"
+colored = "2.0"
+console = "0.15"
+dialoguer = "0.10"
+indicatif = "0.17"
+dirs = "5.0"
+miette = { version = "7.0", features = ["fancy"] }
+thiserror = "1.0"
+git2 = "0.18"
+chrono = { version = "0.4", features = ["serde"] }
+
