@@ -1,4 +1,4 @@
-use crate::agent::ChatMessage;
+use crate::executor::ChatMessage;
 use anyhow::Result;
 use std::path::PathBuf;
 

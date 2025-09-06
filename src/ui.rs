@@ -17,6 +17,7 @@ pub const CHAT: Emoji = Emoji("💬", "");
 pub const MAGNIFYING_GLASS: Emoji = Emoji("🔍", "");
 pub const EYES: Emoji = Emoji("👁️", "");
 pub const BOOK: Emoji = Emoji("📖", "");
+pub const FORWARD: Emoji = Emoji("↪️", "");
 
 pub fn print_header() {
     println!("{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
@@ -176,4 +177,18 @@ pub fn print_review_summary(files_reviewed: usize, critical_issues: usize, sugge
     
     println!("{}", style(format!("│ {} Overall Grade: {}{:35}│", SPARKLES, grade, "")).green());
     println!("{}", style("└─────────────────────────────────────────────────────────────────────────────┘").green());
+}
+
+pub fn print_agent_plan(plan_json: &str) {
+    println!("{}", style("AI Agent has proposed the following plan:").bold().yellow());
+    print_code_block("Execution Plan", plan_json);
+}
+
+pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
+    print!("{} {}", style("Do you want to execute this plan? (y/n)").bold().yellow(), "> ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Ok(input.trim().eq_ignore_ascii_case("y"))
 }

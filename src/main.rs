@@ -1,13 +1,9 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 use miette::Result;
+use rainy_cli::{config, error, ui, utils};
+use std::path::PathBuf;
 
-mod agent;
 mod commands;
-mod config;
-mod error;
-mod ui;
-mod utils;
 
 #[derive(Parser)]
 #[command(name = "rainy-cli")]
@@ -26,11 +22,11 @@ Powered by advanced AI models and built for professional developers.
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    
+
     /// Enable verbose output
     #[arg(short, long, global = true)]
     verbose: bool,
-    
+
     /// Override the default model
     #[arg(short, long, global = true)]
     model: Option<String>,
@@ -108,26 +104,6 @@ enum Commands {
         #[arg(long)]
         context_file: Option<PathBuf>,
     },
-    /// Generate unit tests for existing code
-    Tests {
-        /// Path to source file
-        #[arg(short, long)]
-        file: PathBuf,
-
-        /// Output directory for test files
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    /// Generate documentation for code
-    Docs {
-        /// Path to source file
-        #[arg(short, long)]
-        file: PathBuf,
-
-        /// Documentation format (rustdoc, markdown)
-        #[arg(long, default_value = "rustdoc")]
-        format: String,
-    },
     /// Configure CLI settings
     Config {
         /// Show current configuration
@@ -150,17 +126,21 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Ensure rainy.md exists
+    utils::rainy_md::ensure_rainy_md_exists()
+        .map_err(|e| error::CliError::config_error(&e.to_string()))?;
+
     // Load configuration
     let mut config = config::Config::load()
         .map_err(|e| error::CliError::config_error(&format!("Failed to load configuration: {}", e)))?;
-    
+
     let cli = Cli::parse();
-    
+
     // Apply global flags
     if cli.verbose {
         config.verbose = true;
     }
-    
+
     if let Some(model) = cli.model {
         config.default_model = model;
     }
@@ -174,7 +154,13 @@ async fn main() -> Result<()> {
     }
 
     // Handle config command early (before API key check)
-    if let Commands::Config { show, set_api_key, set_model, reset } = &cli.command {
+    if let Commands::Config {
+        show,
+        set_api_key,
+        set_model,
+        reset,
+    } = &cli.command
+    {
         return handle_config_command(&mut config, *show, set_api_key, set_model, *reset).await;
     }
 
@@ -194,7 +180,8 @@ async fn main() -> Result<()> {
             break key;
         };
 
-        config.set_api_key(api_key.clone())
+        config
+            .set_api_key(api_key.clone())
             .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}", e)))?;
         ui::print_success("API key saved successfully!");
         println!();
@@ -202,27 +189,32 @@ async fn main() -> Result<()> {
 
     // Route to appropriate command handler
     match cli.command {
-        Commands::Analyze { path, analysis_type, apply: _ } => {
-            commands::handle_analyze_command(path, analysis_type, &config).await
-        }
-        Commands::Generate { description, output, with_tests: _, with_docs: _ } => {
-            commands::handle_generate_command(description, output, &config).await
-        }
-        Commands::Template { template, name, output } => {
-            commands::handle_template_command(template, name, output).await
-        }
-        Commands::Review { path, focus, git, git_ref } => {
-            commands::handle_review_command(path, focus, git, git_ref, &config).await
-        }
-        Commands::Chat { message, context_file: _ } => {
-            commands::handle_chat_command(message, &config).await
-        }
-        Commands::Tests { file, output: _ } => {
-            commands::handle_generate_tests(&file, &config).await
-        }
-        Commands::Docs { file, format: _ } => {
-            commands::handle_generate_docs(&file, &config).await
-        }
+        Commands::Analyze {
+            path,
+            analysis_type,
+            apply: _,
+        } => commands::analyze::handle_analyze_command(path, analysis_type, &config).await,
+        Commands::Generate {
+            description,
+            output,
+            with_tests: _,
+            with_docs: _,
+        } => commands::generate::handle_generate_command(description, output, &config).await,
+        Commands::Template {
+            template,
+            name,
+            output,
+        } => commands::template::handle_template_command(template, name, output).await,
+        Commands::Review {
+            path,
+            focus,
+            git,
+            git_ref,
+        } => commands::review::handle_review_command(path, focus, git, git_ref, &config).await,
+        Commands::Chat {
+            message,
+            context_file: _,
+        } => commands::chat::handle_chat_command(message, &config).await,
         Commands::Config { .. } => {
             // Already handled above
             Ok(())
@@ -241,21 +233,24 @@ async fn handle_config_command(
 
     if reset {
         *config = config::Config::default();
-        config.save()
+        config
+            .save()
             .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}", e)))?;
         ui::print_success("Configuration reset to defaults!");
         return Ok(());
     }
 
     if let Some(api_key) = set_api_key {
-        config.set_api_key(api_key.clone())
+        config
+            .set_api_key(api_key.clone())
             .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}", e)))?;
         ui::print_success("API key updated successfully!");
     }
 
     if let Some(model) = set_model {
         config.default_model = model.clone();
-        config.save()
+        config
+            .save()
             .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}", e)))?;
         ui::print_success(&format!("Default model set to: {}", model));
     }
@@ -273,7 +268,7 @@ async fn handle_config_command(
             config.is_verbose()
         );
         ui::print_code_block("Current Configuration", &config_display);
-        
+
         ui::print_info("Configuration file location:");
         if let Ok(config_path) = config::Config::config_file() {
             ui::print_info(&format!("  {}", config_path.display()));
