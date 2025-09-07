@@ -47,14 +47,20 @@ async fn run_agentic_loop(
 ) -> Result<()> {
     loop {
         let pb = ui::print_progress("AI is thinking...");
-        let response = agent.chat(messages.clone()).await.map_err(|e| {
+        let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
             CliError::api_error(&format!("Failed to get AI response: {}", e))
         })?;
         pb.finish_with_message("Response received");
 
+        let response_content = response
+            .choices
+            .first()
+            .map(|c| c.message.content.clone())
+            .unwrap_or_default();
+
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
-        match serde_json::from_str::<Vec<tools::ToolCall>>(&response) {
+        match serde_json::from_str::<Vec<tools::ToolCall>>(&response_content) {
             Ok(plan) => {
                 // Successfully parsed a plan
                 ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
@@ -75,19 +81,20 @@ async fn run_agentic_loop(
                     ui::print_code_block("Execution Results", &results_str);
 
                     // Add both the agent's plan and the execution results to the conversation
-                    messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response });
+                    messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response_content });
                     messages.push(executor::ChatMessage { role: "user".to_string(), content: format!("Here are the results of the execution:\n{}", results_str) });
 
                 } else {
                     ui::print_warning("Plan rejected by user.");
-                    messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response });
+                    messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response_content });
                     messages.push(executor::ChatMessage { role: "user".to_string(), content: "I have rejected this plan. Please propose a new one.".to_string() });
                 }
             }
             Err(_) => {
                 // Failed to parse a plan, treat as a regular chat message
-                ui::print_ai_message(&response);
-                messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response });
+                ui::print_ai_message(&response_content);
+                ui::print_response_metrics(&response, duration);
+                messages.push(executor::ChatMessage { role: "assistant".to_string(), content: response_content });
 
                 let input = ui::prompt_input()
                     .map_err(|e| CliError::file_error("Failed to read user input", e))?;

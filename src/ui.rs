@@ -18,6 +18,9 @@ pub const MAGNIFYING_GLASS: Emoji = Emoji("🔍", "");
 pub const EYES: Emoji = Emoji("👁️", "");
 pub const BOOK: Emoji = Emoji("📖", "");
 pub const FORWARD: Emoji = Emoji("↪️", "");
+pub const TOKENS: Emoji = Emoji("</>", "TOK");
+pub const ROBOT: Emoji = Emoji("🤖", "");
+pub const STOPWATCH: Emoji = Emoji("⏱️", "");
 
 pub fn print_header() {
     println!("{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());
@@ -191,4 +194,21 @@ pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     Ok(input.trim().eq_ignore_ascii_case("y"))
+}
+
+pub fn print_response_metrics(response: &rainy_sdk::ChatCompletionResponse, duration: std::time::Duration) {
+    if let Some(usage) = &response.usage {
+        let stats = format!(
+            "{} Tokens: [Prompt: {}, Completion: {}, Total: {}]  {} Model: {}  {} Speed: {:.2?}",
+            TOKENS,
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens,
+            ROBOT,
+            response.model,
+            STOPWATCH,
+            duration
+        );
+        println!("{}", style(stats).dim());
+    }
 }

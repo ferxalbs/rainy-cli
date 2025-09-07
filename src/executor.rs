@@ -99,7 +99,10 @@ Here are the project-specific instructions provided by the user in `rainy.md`:
         })
     }
 
-    pub async fn chat(&self, messages: Vec<ChatMessage>) -> Result<String> {
+    pub async fn chat(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> Result<(rainy_sdk::ChatCompletionResponse, std::time::Duration)> {
         let mut full_messages = vec![RainyChatMessage {
             role: ChatRole::System,
             content: self.system_prompt.clone(),
@@ -111,8 +114,6 @@ Here are the project-specific instructions provided by the user in `rainy.md`:
                 role: match msg.role.as_str() {
                     "user" => ChatRole::User,
                     "assistant" => ChatRole::Assistant,
-                    // System messages from the chat history are treated as user messages here
-                    // because the main system prompt is already set.
                     "system" => ChatRole::User,
                     _ => ChatRole::User,
                 },
@@ -136,10 +137,12 @@ Here are the project-specific instructions provided by the user in `rainy.md`:
             user: None,
         };
 
+        let start_time = std::time::Instant::now();
         let response = self.client.create_chat_completion(request).await?;
+        let duration = start_time.elapsed();
 
-        if let Some(choice) = response.choices.first() {
-            Ok(choice.message.content.clone())
+        if response.choices.first().is_some() {
+            Ok((response, duration))
         } else {
             Err(anyhow!("No response from AI"))
         }
