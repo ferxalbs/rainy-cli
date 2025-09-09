@@ -1,6 +1,6 @@
 use crate::commands::chat::handle_chat_command;
 use miette::Result;
-use rainy_cli::{config::Config, ui};
+use crate::{config::Config, ui};
 use std::path::PathBuf;
 
 pub async fn handle_generate_command(

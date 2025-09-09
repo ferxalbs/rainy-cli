@@ -8,6 +8,7 @@ use dirs::home_dir;
 pub struct Config {
     pub api_key: Option<String>,
     pub default_model: String,
+    pub title_model: String,
     pub theme: String,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,
@@ -20,6 +21,7 @@ impl Default for Config {
         Self {
             api_key: None,
             default_model: "moonshotai/kimi-k2-instruct-0905".to_string(),
+            title_model: "gemini-2.5-flash-lite".to_string(),
             theme: "dark".to_string(),
             max_tokens: Some(4096),
             temperature: Some(0.7),

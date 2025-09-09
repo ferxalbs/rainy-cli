@@ -1,9 +1,16 @@
 use clap::{Parser, Subcommand};
 use miette::Result;
-use rainy_cli::{config::{self, Config}, error, executor, ui, utils};
 use std::path::PathBuf;
 
+use crate::config::Config;
+
 mod commands;
+mod config;
+mod error;
+mod executor;
+mod tools;
+mod ui;
+mod utils;
 
 #[derive(Parser)]
 #[command(name = "rainy-cli")]

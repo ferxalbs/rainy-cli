@@ -1,26 +1,26 @@
 use miette::Result;
-use rainy_cli::{config::Config, error::CliError, executor, tools, ui, utils::{context, history, rainy_md, sessions::{SessionManager, ChatMessage}}};
+use crate::{config::Config, executor, tools, ui, utils::{context, history, rainy_md, sessions::{SessionManager, ChatMessage}}};
 use std::path::PathBuf;
 
-/// Genera automáticamente título y descripción para una nueva sesión
 async fn generate_session_title_and_description(
     initial_message: &str,
     api_key: &str,
+    model: &str,
 ) -> Result<(String, String)> {
     let client = rainy_sdk::RainyClient::with_api_key(api_key)
-        .map_err(|e| CliError::api_error(&format!("Failed to create client: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create client: {}", e)))?;
 
     let prompt = format!(
-        r#"Analiza el siguiente mensaje del usuario y genera:
-1. Un título conciso (máximo 50 caracteres) que capture la esencia del tema
-2. Una descripción breve (máximo 100 caracteres) que explique qué se discutirá
+        r#"Analyze the following user message and generate:
+1. A concise title (max 50 chars) that captures the essence of the topic.
+2. A brief description (max 100 chars) explaining what will be discussed.
 
-Mensaje del usuario: "{}"
+User message: "{}"
 
-Responde ÚNICAMENTE con un JSON válido en este formato:
+Respond ONLY with a valid JSON in this format:
 {{
-    "title": "Título generado",
-    "description": "Descripción generada"
+    "title": "Generated Title",
+    "description": "Generated Description"
 }}"#,
         initial_message
     );
@@ -30,10 +30,10 @@ Responde ÚNICAMENTE con un JSON válido en este formato:
             role: rainy_sdk::MessageRole::User,
             content: prompt,
         }],
-        model: "moonshotai/kimi-k2-instruct-0905".to_string(), // Usar el mismo modelo predeterminado
+        model: model.to_string(),
         provider: None,
-        temperature: Some(0.3), // Bajo para consistencia
-        max_tokens: Some(150),  // Suficiente para título y descripción
+        temperature: Some(0.3),
+        max_tokens: Some(150),
         stream: Some(false),
         stop: None,
         top_p: None,
@@ -43,7 +43,7 @@ Responde ÚNICAMENTE con un JSON válido en este formato:
     };
 
     let response = client.create_chat_completion(request).await
-        .map_err(|e| CliError::api_error(&format!("Failed to generate session info: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to generate session info: {}", e)))?;
 
     if let Some(choice) = response.choices.first() {
         let content = choice.message.content.trim();
@@ -102,18 +102,18 @@ pub async fn handle_chat_command(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| CliError::config_error(&format!("API key not configured: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured: {}", e)))?;
 
     // Detectar si necesitamos crear una sesión automáticamente
     let session_manager = SessionManager::new()
-        .map_err(|e| CliError::api_error(&format!("Failed to initialize session manager: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize session manager: {}", e)))?;
 
     let (use_session, session_id) = if let Some(initial_msg) = &message {
         // Si hay mensaje inicial, crear sesión automáticamente
         ui::print_info("🎯 Creando sesión automática para tu consulta...");
 
         // Generar título y descripción usando Llama-3.1-8b-instant
-        let (title, description) = generate_session_title_and_description(initial_msg, &api_key)
+        let (title, description) = generate_session_title_and_description(initial_msg, &api_key, &config.title_model)
             .await
             .unwrap_or_else(|_| {
                 // Fallback si falla la generación automática
@@ -128,7 +128,7 @@ pub async fn handle_chat_command(
 
         // Crear la sesión
         let session = session_manager.create_session(title.clone(), Some(description.clone()))
-            .map_err(|e| CliError::api_error(&format!("Failed to create session: {}", e)))?;
+            .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create session: {}", e)))?;
 
         // Mostrar información de la sesión creada
         ui::print_success(&format!("✅ Sesión creada: \"{}\"", title));
@@ -147,7 +147,7 @@ pub async fn handle_chat_command(
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
 
     let mut messages = Vec::new();
 
@@ -196,7 +196,7 @@ pub async fn handle_chat_command(
     if let Some(files) = context_files {
         if !files.is_empty() {
             let context_str = context::collect_context_from_paths(&files)
-                .map_err(|e| CliError::context_error("Failed to collect context from paths", e))?;
+                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from paths", e))?;
             let paths_str: Vec<String> = files.iter().map(|p| p.display().to_string()).collect();
             messages.push(executor::ChatMessage {
                 role: "user".to_string(),
@@ -221,7 +221,7 @@ pub async fn handle_chat_command(
     } else {
         // Start with an empty user message to kick off the loop
         let input =
-            ui::prompt_input().map_err(|e| CliError::file_error("Failed to read input", e))?;
+            ui::prompt_input().map_err(|e| crate::error::CliError::file_error("Failed to read input", e))?;
         messages.push(executor::ChatMessage {
             role: "user".to_string(),
             content: input,
@@ -250,7 +250,7 @@ async fn run_agentic_loop(
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
             let mut input = ui::prompt_input()
-                .map_err(|e| CliError::file_error("Failed to read user input", e))?;
+                .map_err(|e| crate::error::CliError::file_error("Failed to read user input", e))?;
 
             if input.starts_with('@') {
                 input = handle_at_command(&input).await?;
@@ -268,7 +268,7 @@ async fn run_agentic_loop(
 
         let pb = ui::print_progress("AI is thinking...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            CliError::api_error(&format!("Failed to get AI response: {}", e))
+            crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
         })?;
         pb.finish_with_message("Response received");
 
@@ -286,14 +286,14 @@ async fn run_agentic_loop(
                 ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
 
                 if ui::prompt_for_confirmation()
-                    .map_err(|e| CliError::file_error("Failed to read confirmation", e))?
+                    .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?
                 {
                     ui::print_info("Executing plan...");
                     let mut results = Vec::new();
                     for tool_call in plan {
                         let result = tools::execute_tool(tool_call)
                             .await
-                            .map_err(|e| CliError::api_error(&e.to_string()))?;
+                            .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
                     }
 
@@ -363,7 +363,7 @@ async fn handle_at_command(input: &str) -> Result<String> {
     }
 
     let selection = ui::prompt_input_with_prompt("Select a file to add to the context (or 0 to cancel):")
-        .map_err(|e| CliError::file_error("Failed to read input", e))?;
+        .map_err(|e| crate::error::CliError::file_error("Failed to read input", e))?;
 
     let selection: usize = match selection.trim().parse() {
         Ok(num) => num,
@@ -376,7 +376,7 @@ async fn handle_at_command(input: &str) -> Result<String> {
     if selection > 0 && selection <= found_files.len() {
         let selected_path = &found_files[selection - 1];
         let content = std::fs::read_to_string(selected_path)
-            .map_err(|e| CliError::file_error("Failed to read file", e))?;
+            .map_err(|e| crate::error::CliError::file_error("Failed to read file", e))?;
         let new_input = format!(
             "Using file `{}` as context.\n\n---\n\n{}\n\n---\n\n{}",
             selected_path.display(),
@@ -402,14 +402,14 @@ pub async fn handle_chat_with_session(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| CliError::config_error(&format!("API key not configured: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured: {}", e)))?;
 
     let agent = executor::AgenticExecutor::new(
         api_key.to_string(),
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
 
     let mut messages = Vec::new();
 
@@ -435,7 +435,7 @@ pub async fn handle_chat_with_session(
     if let Some(files) = context_files {
         if !files.is_empty() {
             let context_str = context::collect_context_from_paths(&files)
-                .map_err(|e| CliError::context_error("Failed to collect context from paths", e))?;
+                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from paths", e))?;
             let paths_str: Vec<String> = files.iter().map(|p| p.display().to_string()).collect();
             messages.push(executor::ChatMessage {
                 role: "user".to_string(),
@@ -467,7 +467,7 @@ async fn run_session_chat_loop(
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
             let mut input = ui::prompt_input()
-                .map_err(|e| CliError::file_error("Failed to read user input", e))?;
+                .map_err(|e| crate::error::CliError::file_error("Failed to read user input", e))?;
 
             if input.starts_with('@') {
                 input = handle_at_command(&input).await?;
@@ -486,7 +486,7 @@ async fn run_session_chat_loop(
 
         let pb = ui::print_progress("AI is thinking...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            CliError::api_error(&format!("Failed to get AI response: {}", e))
+            crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
         })?;
         pb.finish_with_message("Response received");
 
@@ -504,14 +504,14 @@ async fn run_session_chat_loop(
                 ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
 
                 if ui::prompt_for_confirmation()
-                    .map_err(|e| CliError::file_error("Failed to read confirmation", e))?
+                    .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?
                 {
                     ui::print_info("Executing plan...");
                     let mut results = Vec::new();
                     for tool_call in plan {
                         let result = tools::execute_tool(tool_call)
                             .await
-                            .map_err(|e| CliError::api_error(&e.to_string()))?;
+                            .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
                     }
 

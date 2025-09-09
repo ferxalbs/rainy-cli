@@ -1,9 +1,9 @@
 use crate::commands::chat::handle_chat_command;
 use miette::Result;
-use rainy_cli::{config::Config, ui};
+use crate::{config::Config, ui};
 use std::path::PathBuf;
 
-use rainy_cli::utils::context;
+use crate::utils::context;
 
 pub async fn handle_analyze_command(
     paths: Vec<PathBuf>,
@@ -16,7 +16,7 @@ pub async fn handle_analyze_command(
     );
 
     let full_context = context::collect_context_from_paths(&paths)
-        .map_err(|e| rainy_cli::error::CliError::context_error("Failed to collect context from paths", e))?;
+        .map_err(|e| crate::error::CliError::context_error("Failed to collect context from paths", e))?;
     let paths_str: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
 
     let initial_message = format!(
