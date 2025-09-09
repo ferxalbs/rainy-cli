@@ -22,5 +22,5 @@ pub async fn handle_generate_command(
     ui::print_info("The `generate` command is now handled by the agentic chat.");
     ui::print_info("You will be dropped into a chat session with your request pre-filled.");
 
-    handle_chat_command(Some(initial_message), config).await
+    handle_chat_command(Some(initial_message), None, config).await
 }

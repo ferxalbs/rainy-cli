@@ -50,6 +50,14 @@ pub enum CliError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+
+    #[error("Context error: {message}")]
+    #[diagnostic(code(rainy_cli::context))]
+    Context {
+        message: String,
+        #[source]
+        source: anyhow::Error,
+    },
 }
 
 impl CliError {
@@ -92,6 +100,13 @@ impl CliError {
         Self::Command {
             message: message.into(),
             source: None,
+        }
+    }
+
+    pub fn context_error(message: impl Into<String>, source: anyhow::Error) -> Self {
+        Self::Context {
+            message: message.into(),
+            source,
         }
     }
 }

@@ -34,11 +34,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Analyze code in a file or directory
+    /// Analyze code in one or more files or directories
     Analyze {
-        /// Path to file or directory to analyze
-        #[arg(short, long)]
-        path: PathBuf,
+        /// Paths to files or directories to analyze
+        #[arg(short, long, num_args = 1..)]
+        paths: Vec<PathBuf>,
 
         /// Analysis type (security, performance, style, complexity, general)
         #[arg(short, long, default_value = "general")]
@@ -79,9 +79,9 @@ enum Commands {
     },
     /// Review and suggest improvements for code
     Review {
-        /// Path to file or directory to review
-        #[arg(short, long)]
-        path: Option<PathBuf>,
+        /// Paths to files or directories to review
+        #[arg(short, long, num_args = 1..)]
+        paths: Vec<PathBuf>,
 
         /// Focus area (performance, security, readability, etc.)
         #[arg(short, long)]
@@ -100,9 +100,9 @@ enum Commands {
         /// Initial message to start the conversation
         message: Option<String>,
 
-        /// Load specific file context for the chat
-        #[arg(long)]
-        context_file: Option<PathBuf>,
+        /// Load specific file contexts for the chat
+        #[arg(long, num_args = 1..)]
+        context_files: Vec<PathBuf>,
     },
     /// Configure CLI settings
     Config {
@@ -190,10 +190,10 @@ async fn main() -> Result<()> {
     // Route to appropriate command handler
     match cli.command {
         Commands::Analyze {
-            path,
+            paths,
             analysis_type,
             apply: _,
-        } => commands::analyze::handle_analyze_command(path, analysis_type, &config).await,
+        } => commands::analyze::handle_analyze_command(paths, analysis_type, &config).await,
         Commands::Generate {
             description,
             output,
@@ -206,15 +206,15 @@ async fn main() -> Result<()> {
             output,
         } => commands::template::handle_template_command(template, name, output).await,
         Commands::Review {
-            path,
+            paths,
             focus,
             git,
             git_ref,
-        } => commands::review::handle_review_command(path, focus, git, git_ref, &config).await,
+        } => commands::review::handle_review_command(paths, focus, git, git_ref, &config).await,
         Commands::Chat {
             message,
-            context_file: _,
-        } => commands::chat::handle_chat_command(message, &config).await,
+            context_files,
+        } => commands::chat::handle_chat_command(message, Some(context_files), &config).await,
         Commands::Config { .. } => {
             // Already handled above
             Ok(())

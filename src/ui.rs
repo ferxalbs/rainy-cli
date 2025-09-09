@@ -113,6 +113,15 @@ pub fn prompt_api_key() -> Result<String, std::io::Error> {
     Ok(input.trim().to_string())
 }
 
+pub fn prompt_input_with_prompt(prompt: &str) -> Result<String, std::io::Error> {
+    print!("{} ", style(prompt).cyan().bold());
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Ok(input.trim().to_string())
+}
+
 pub fn print_chat_header() {
     println!("{}", style("┌─ Interactive Chat Mode ──────────────────────────────────────────────────────┐").magenta());
     println!("{}", style(format!("│ {} Type your messages and press Enter. Type 'exit' or 'quit' to leave.│", CHAT)).magenta());

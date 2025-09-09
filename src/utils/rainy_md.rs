@@ -46,3 +46,35 @@ pub fn ensure_rainy_md_exists() -> Result<()> {
     }
     Ok(())
 }
+
+pub fn load_hierarchical_rainy_md() -> Result<String> {
+    let mut combined_content = String::new();
+    let current_dir = std::env::current_dir()?;
+    let home_dir = dirs::home_dir().context("Could not find home directory")?;
+
+    let mut path = current_dir.as_path();
+
+    loop {
+        let rainy_md_path = path.join(RAINY_MD_FILENAME);
+        if rainy_md_path.exists() {
+            let content = fs::read_to_string(&rainy_md_path)?;
+            combined_content.push_str(&format!(
+                "\n\n---\n\n# Context from {}\n\n{}",
+                rainy_md_path.display(),
+                content
+            ));
+        }
+
+        if path == home_dir {
+            break;
+        }
+
+        if let Some(parent) = path.parent() {
+            path = parent;
+        } else {
+            break;
+        }
+    }
+
+    Ok(combined_content)
+}

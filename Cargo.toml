@@ -21,6 +21,8 @@ miette = { version = "7.0", features = ["fancy"] }
 thiserror = "1.0"
 git2 = "0.18"
 chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2.5.0"
+diffy = "0.4.2"
 
 [dev-dependencies]
 tempfile = "3.3"
@@ -28,4 +30,9 @@ tempfile = "3.3"
 [[test]]
 name = "tools"
 path = "tests/tools.rs"
+harness = true
+
+[[test]]
+name = "context"
+path = "tests/context.rs"
 harness = true

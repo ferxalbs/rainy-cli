@@ -115,3 +115,31 @@ pub fn get_file_context(file_path: &str) -> Result<String> {
     
     Ok(context)
 }
+
+use std::path::PathBuf;
+use walkdir::WalkDir;
+
+pub fn collect_context_from_paths(paths: &[PathBuf]) -> Result<String> {
+    let mut context = String::new();
+
+    for path in paths {
+        if path.is_file() {
+            let content = std::fs::read_to_string(path)?;
+            context.push_str(&format!("## File: {}\n", path.display()));
+            context.push_str(&content);
+            context.push_str("\n\n");
+        } else if path.is_dir() {
+            for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+                if entry.path().is_file() {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        context.push_str(&format!("## File: {}\n", entry.path().display()));
+                        context.push_str(&content);
+                        context.push_str("\n\n");
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(context)
+}
