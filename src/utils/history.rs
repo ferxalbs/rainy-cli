@@ -11,11 +11,11 @@ pub fn get_history_file_path() -> PathBuf {
 }
 
 pub fn save_conversation_history(messages: &[ChatMessage]) -> Result<()> {
-    // Filter out system messages and limit history size
+    // Filter out system messages and limit history size more aggressively
     let history: Vec<&ChatMessage> = messages.iter()
         .filter(|msg| msg.role != "system")
         .rev()
-        .take(50) // Keep last 50 messages
+        .take(20) // Reduced from 50 to 20 messages to save tokens
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
@@ -24,6 +24,20 @@ pub fn save_conversation_history(messages: &[ChatMessage]) -> Result<()> {
     let content = serde_json::to_string_pretty(&history)?;
     std::fs::write(get_history_file_path(), content)?;
     Ok(())
+}
+
+/// Load conversation history with content truncation to save tokens
+pub fn load_conversation_history_truncated(max_chars_per_message: usize) -> Result<Vec<ChatMessage>> {
+    let mut history = load_conversation_history()?;
+
+    // Truncate long messages to save tokens
+    for msg in &mut history {
+        if msg.content.len() > max_chars_per_message {
+            msg.content = format!("{}... [truncated]", &msg.content[..max_chars_per_message.saturating_sub(20)]);
+        }
+    }
+
+    Ok(history)
 }
 
 pub fn load_conversation_history() -> Result<Vec<ChatMessage>> {

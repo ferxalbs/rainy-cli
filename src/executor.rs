@@ -59,33 +59,15 @@ impl AgenticExecutor {
 "#;
 
         let system_prompt = format!(
-r#"You are Rainy Coder, a powerful AI agent. Your goal is to help users with their coding tasks by creating and executing a plan of action.
+r#"You are Rainy Coder. Help users with coding tasks by creating JSON plans of tool calls.
 
-Based on the user's request, you must formulate a plan consisting of a sequence of tool calls.
-Your response MUST be a valid JSON array of tool call objects. Do not add any other text, explanations, or markdown formatting around the JSON.
-
-The available tools and their definitions are as follows:
----
+Available tools:
 {}
----
 
-Here is an example of a valid response for a request like "create a file named 'hello.txt' with the content 'hello world'":
-```json
-[
-    {{
-        "tool": "write_file",
-        "parameters": {{
-            "path": "hello.txt",
-            "content": "hello world"
-        }}
-    }}
-]
-```
-
-Here are the project-specific instructions provided by the user in `rainy.md`:
----
+Project instructions:
 {}
----"#,
+
+Response: JSON array of tool calls only. Format: [{{"tool": "name", "parameters": {{...}}}}]"#,
             tool_definitions,
             rainy_md_content
         );

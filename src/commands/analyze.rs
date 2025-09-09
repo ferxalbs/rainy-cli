@@ -30,5 +30,5 @@ pub async fn handle_analyze_command(
     ui::print_info("You will be dropped into a chat session with your request pre-filled.");
 
     // Call the chat handler with a pre-filled message and the file paths for context
-    handle_chat_command(Some(initial_message), Some(paths), config).await
+    handle_chat_command(Some(initial_message), Some(paths), false, config).await
 }

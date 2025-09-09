@@ -21,6 +21,15 @@ pub const FORWARD: Emoji = Emoji("↪️", "");
 pub const TOKENS: Emoji = Emoji("</>", "TOK");
 pub const ROBOT: Emoji = Emoji("🤖", "");
 pub const STOPWATCH: Emoji = Emoji("⏱️", "");
+pub const ADD: Emoji = Emoji("➕", "");
+pub const LIST: Emoji = Emoji("📋", "");
+pub const EDIT: Emoji = Emoji("✏️", "");
+pub const TAG: Emoji = Emoji("🏷️", "");
+pub const DELETE: Emoji = Emoji("🗑️", "");
+pub const CLEAR: Emoji = Emoji("🧹", "");
+pub const SEARCH: Emoji = Emoji("🔎", "");
+pub const EXPORT: Emoji = Emoji("📤", "");
+pub const IMPORT: Emoji = Emoji("📥", "");
 
 pub fn print_header() {
     println!("{}", style("╔══════════════════════════════════════════════════════════════════════════════╗").cyan());

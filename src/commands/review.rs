@@ -39,5 +39,5 @@ pub async fn handle_review_command(
     ui::print_info("The `review` command is now handled by the agentic chat.");
     ui::print_info("You will be dropped into a chat session with your request pre-filled.");
 
-    handle_chat_command(Some(initial_message), Some(paths), config).await
+    handle_chat_command(Some(initial_message), Some(paths), false, config).await
 }
