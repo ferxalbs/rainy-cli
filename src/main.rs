@@ -221,6 +221,12 @@ enum Commands {
         #[command(subcommand)]
         action: SessionAction,
     },
+        /// Manage the project's codebase context (Rainy.md)
+        Codebase {
+            /// Force update of Rainy.md if it already exists
+            #[arg(long)]
+            update: bool,
+        },
     /// Configure CLI settings
     Config {
         /// Show current configuration
@@ -243,13 +249,10 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Ensure rainy.md exists
-    utils::rainy_md::ensure_rainy_md_exists()
-        .map_err(|e| error::CliError::config_error(&e.to_string()))?;
-
     // Load configuration
     let mut config = config::Config::load()
         .map_err(|e| error::CliError::config_error(&format!("Failed to load configuration: {}", e)))?;
+
 
     let cli = Cli::parse();
 
@@ -321,7 +324,7 @@ async fn main() -> Result<()> {
             template,
             name,
             output,
-        } => commands::template::handle_template_command(template, name, output).await,
+        } => commands::template::handle_template_command(template, name, output, &config).await,
         Commands::Review {
             paths,
             focus,
@@ -334,6 +337,7 @@ async fn main() -> Result<()> {
             no_history,
         } => commands::chat::handle_chat_command(message, Some(context_files), no_history, &config).await,
         Commands::Session { action } => handle_session_command(action, &config).await,
+        Commands::Codebase { update } => commands::codebase::handle_codebase_command(update, &config).await,
         Commands::Config { .. } => {
             // Already handled above
             Ok(())

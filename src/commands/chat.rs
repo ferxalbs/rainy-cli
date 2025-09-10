@@ -97,6 +97,11 @@ pub async fn handle_chat_command(
     no_history: bool,
     config: &Config,
 ) -> Result<()> {
+    // Ensure rainy.md exists before starting chat
+    if let Err(e) = rainy_md::ensure_rainy_md_exists(config).await {
+        ui::print_warning(&format!("Could not ensure rainy.md exists: {}", e));
+    }
+
     ui::print_command_start("CHAT", &format!("{} Agentic Chat Mode", ui::CHAT));
     ui::print_chat_header();
 

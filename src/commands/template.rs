@@ -1,11 +1,13 @@
-use crate::{error::CliError, ui};
+use crate::{config::Config, error::CliError, ui, utils};
 use miette::Result;
+use std::env;
 use std::path::PathBuf;
 
 pub async fn handle_template_command(
     template: String,
     name: String,
     output: Option<PathBuf>,
+    config: &Config,
 ) -> Result<()> {
     ui::print_command_start("TEMPLATE", &format!("{} Generating {} project: {}", ui::CODE, template, name));
     ui::print_generation_header(&format!("Creating {} project template", template));
@@ -17,6 +19,19 @@ pub async fn handle_template_command(
         .await
         .map_err(|e| CliError::command_error(&format!("Failed to generate template: {}", e)))?;
     pb.finish_with_message("Project structure created");
+
+    let original_dir = env::current_dir()
+        .map_err(|e| CliError::file_error("Failed to get current directory", e))?;
+    if let Err(e) = env::set_current_dir(&output_dir) {
+        ui::print_warning(&format!("Failed to switch to project directory: {}. Skipping Rainy.md generation.", e));
+    } else {
+        ui::print_info("Generating Rainy.md for the new project...");
+        if let Err(e) = utils::rainy_md::ensure_rainy_md_exists(config).await {
+            ui::print_warning(&format!("Failed to generate Rainy.md: {}", e));
+        }
+        env::set_current_dir(&original_dir)
+            .map_err(|e| CliError::file_error("Failed to switch back to original directory", e))?;
+    }
 
     ui::print_separator();
     ui::print_success(&format!("Project '{}' created successfully at: {}", name, output_dir.display()));
