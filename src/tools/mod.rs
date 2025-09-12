@@ -6,7 +6,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "tool", content = "parameters", rename_all = "snake_case")]
 pub enum ToolCall {
     ReadFile { path: String },

@@ -3,6 +3,11 @@ name = "rainy-cli"
 version = "0.2.0"
 edition = "2021"
 
+description = "A premium AI-powered code assistant that helps developers analyze, generate, review, and chat about code."
+license = "MIT"
+repository = "https://github.com/your-org/rainy-cli"
+keywords = ["cli", "ai", "developer-tools", "code-assistant", "agent"]
+
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }
@@ -23,6 +28,7 @@ git2 = "0.18"
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.5.0"
 diffy = "0.4.2"
+regex = "1.10.2"
 
 [dev-dependencies]
 tempfile = "3.3"

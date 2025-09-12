@@ -27,11 +27,12 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 - **Interactive Suggestions**: Apply improvements with guided assistance
 - **Quality Scoring**: Get overall quality grades (A+ to C)
 
-### 💬 **Interactive AI Chat**
-- **Context-Aware**: Understands your current project structure
-- **Inline Commands**: `/analyze`, `/review` commands within chat
-- **Conversation History**: Persistent chat sessions
-- **Project Context**: Automatically loads project information
+### 💬 **Interactive AI Agent**
+- **Context-Aware**: Understands your project via `AGENTS.md`.
+- **Agentic Workflow**: Proposes and executes plans to modify your codebase.
+- **Command Execution**: Can run tests and other commands defined in `AGENTS.md`.
+- **Live Updates**: Keeps `AGENTS.md` updated with a log of its activities.
+- **Conversation History**: Persistent chat sessions.
 
 ### 🏗️ **Project Templates**
 - **rust-api**: Modern REST API with Axum, database integration
@@ -66,26 +67,27 @@ rainy-cli config --set-api-key "your-rainy-api-key"
 rainy-cli config --show
 ```
 
+### AGENTS.md
+
+This project follows the [AGENTS.md](https://agents.md/) standard for providing instructions to AI coding agents.
+
+To get started, you can ask the agent to create a default `AGENTS.md` file for your project:
+
+```bash
+rainy-cli agent init
+```
+
+You can then edit this file to provide more specific instructions, such as build commands, testing procedures, and coding conventions.
+
 ### Basic Usage
 
 ```bash
-# Analyze code for security issues
-rainy-cli analyze --path src/main.rs --analysis-type security
+# Start an interactive chat with the AI agent
+rainy-cli chat "Refactor the main function to improve readability."
 
-# Generate a new Rust API project
-rainy-cli template rust-api my-api-project
-
-# Review Git changes
-rainy-cli review --git --focus performance
-
-# Start interactive chat
-rainy-cli chat "How can I optimize this Rust code?"
-
-# Generate tests for a file
-rainy-cli tests --file src/utils.rs
-
-# Add documentation to code
-rainy-cli docs --file src/main.rs
+# The agent will propose a plan. If you approve, it will execute it.
+# After execution, it will run any tests defined in AGENTS.md.
+# Finally, it will update AGENTS.md with a summary of its actions.
 ```
 
 ## 📖 Command Reference
@@ -156,6 +158,7 @@ src/
 ├── main.rs           # CLI entry point and routing
 ├── commands/         # Command implementations
 │   ├── mod.rs
+│   ├── agent.rs      # Agent-related commands
 │   ├── analyze.rs    # Code analysis
 │   ├── chat.rs       # Interactive chat
 │   ├── generate.rs   # Code generation
@@ -163,10 +166,11 @@ src/
 │   └── template.rs   # Project templates
 ├── utils/            # Utility modules
 │   ├── mod.rs
+│   ├── agents_md.rs  # AGENTS.md parsing and generation
 │   ├── context.rs    # Project context loading
 │   ├── git.rs        # Git integration
 │   └── history.rs    # Chat history management
-├── agent.rs          # AI agent and SDK integration
+├── executor.rs       # Agentic executor and tool handling
 ├── config.rs         # Configuration management
 ├── error.rs          # Error types and handling
 └── ui.rs             # User interface and styling

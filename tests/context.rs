@@ -1,28 +1,28 @@
-use rainy_cli::utils::rainy_md::load_hierarchical_rainy_md;
+use rainy_cli::utils::agents_md::load_hierarchical_agents_md;
 use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn test_hierarchical_rainy_md() {
+fn test_hierarchical_agents_md() {
     let dir = tempdir().unwrap();
     let root = dir.path();
 
-    // Create a rainy.md in the root
-    let root_rainy_md_path = root.join("rainy.md");
-    let root_content = "This is the root rainy.md";
-    fs::write(root_rainy_md_path, root_content).unwrap();
+    // Create a AGENTS.md in the root
+    let root_agents_md_path = root.join("AGENTS.md");
+    let root_content = "This is the root AGENTS.md";
+    fs::write(root_agents_md_path, root_content).unwrap();
 
-    // Create a subdirectory and a rainy.md in it
+    // Create a subdirectory and a AGENTS.md in it
     let sub_dir = root.join("subdir");
     fs::create_dir(&sub_dir).unwrap();
-    let sub_rainy_md_path = sub_dir.join("rainy.md");
-    let sub_content = "This is the sub rainy.md";
-    fs::write(sub_rainy_md_path, sub_content).unwrap();
+    let sub_agents_md_path = sub_dir.join("AGENTS.md");
+    let sub_content = "This is the sub AGENTS.md";
+    fs::write(sub_agents_md_path, sub_content).unwrap();
 
     // Change current directory to the subdirectory
     std::env::set_current_dir(&sub_dir).unwrap();
 
-    let combined_content = load_hierarchical_rainy_md().unwrap();
+    let combined_content = load_hierarchical_agents_md().unwrap();
 
     // Check that both contents are present and the sub content is first
     assert!(combined_content.contains(root_content));

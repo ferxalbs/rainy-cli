@@ -221,12 +221,8 @@ enum Commands {
         #[command(subcommand)]
         action: SessionAction,
     },
-        /// Manage the project's codebase context (Rainy.md)
-        Codebase {
-            /// Force update of Rainy.md if it already exists
-            #[arg(long)]
-            update: bool,
-        },
+    /// Interact with the AI agent
+    Agent(commands::agent::AgentArgs),
     /// Configure CLI settings
     Config {
         /// Show current configuration
@@ -337,7 +333,7 @@ async fn main() -> Result<()> {
             no_history,
         } => commands::chat::handle_chat_command(message, Some(context_files), no_history, &config).await,
         Commands::Session { action } => handle_session_command(action, &config).await,
-        Commands::Codebase { update } => commands::codebase::handle_codebase_command(update, &config).await,
+        Commands::Agent(args) => commands::agent::handle_agent_command(args, &config).await,
         Commands::Config { .. } => {
             // Already handled above
             Ok(())

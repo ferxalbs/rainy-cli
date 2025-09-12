@@ -1,8 +1,7 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use rainy_sdk::{RainyClient, ChatRole, ChatMessage as RainyChatMessage, ChatCompletionRequest};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -20,10 +19,6 @@ pub struct AgenticExecutor {
 
 impl AgenticExecutor {
     pub async fn new(api_key: String, model: Option<String>) -> Result<Self> {
-        let rainy_md_content = fs::read_to_string("rainy.md")
-            .await
-            .context("Failed to read rainy.md")?;
-
         let tool_definitions = r#"
 [
     {
@@ -64,12 +59,8 @@ r#"You are Rainy Coder. Help users with coding tasks by creating JSON plans of t
 Available tools:
 {}
 
-Project instructions:
-{}
-
 Response: JSON array of tool calls only. Format: [{{"tool": "name", "parameters": {{...}}}}]"#,
-            tool_definitions,
-            rainy_md_content
+            tool_definitions
         );
 
         Ok(Self {

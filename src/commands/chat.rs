@@ -1,5 +1,5 @@
 use miette::Result;
-use crate::{config::Config, executor, tools, ui, utils::{context, history, rainy_md, sessions::{SessionManager, ChatMessage}}};
+use crate::{config::Config, executor, tools, ui, utils::{self, context, history, agents_md, sessions::{SessionManager, ChatMessage}}};
 use std::path::PathBuf;
 
 async fn generate_session_title_and_description(
@@ -97,10 +97,6 @@ pub async fn handle_chat_command(
     no_history: bool,
     config: &Config,
 ) -> Result<()> {
-    // Ensure rainy.md exists before starting chat
-    if let Err(e) = rainy_md::ensure_rainy_md_exists(config).await {
-        ui::print_warning(&format!("Could not ensure rainy.md exists: {}", e));
-    }
 
     ui::print_command_start("CHAT", &format!("{} Agentic Chat Mode", ui::CHAT));
     ui::print_chat_header();
@@ -156,18 +152,18 @@ pub async fn handle_chat_command(
 
     let mut messages = Vec::new();
 
-    // Load hierarchical rainy.md content and add it as a system message
-    match rainy_md::load_hierarchical_rainy_md() {
-        Ok(rainy_md_content) => {
-            if !rainy_md_content.is_empty() {
+    // Load hierarchical AGENTS.md content and add it as a system message
+    match agents_md::load_hierarchical_agents_md() {
+        Ok(agents_md_content) => {
+            if !agents_md_content.is_empty() {
                 messages.push(executor::ChatMessage {
                     role: "system".to_string(),
-                    content: format!("Here is the content from the rainy.md files:\n\n{}", rainy_md_content),
+                    content: format!("Here is the content from the AGENTS.md files:\n\n{}", agents_md_content),
                 });
             }
         }
         Err(e) => {
-            ui::print_warning(&format!("Failed to load rainy.md content: {}", e));
+            ui::print_warning(&format!("Failed to load AGENTS.md content: {}", e));
         }
     }
 
@@ -251,6 +247,9 @@ async fn run_agentic_loop(
     messages: &mut Vec<executor::ChatMessage>,
     agent: &executor::AgenticExecutor,
 ) -> Result<()> {
+    let agents_md_content = agents_md::load_hierarchical_agents_md().unwrap_or_default();
+    let agents_md = agents_md::parse_agents_md(&agents_md_content);
+
     loop {
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
@@ -295,15 +294,22 @@ async fn run_agentic_loop(
                 {
                     ui::print_info("Executing plan...");
                     let mut results = Vec::new();
-                    for tool_call in plan {
-                        let result = tools::execute_tool(tool_call)
+                    for tool_call in &plan {
+                        let result = tools::execute_tool(tool_call.clone())
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
                     }
 
-                    let results_str = serde_json::to_string_pretty(&results).unwrap();
+                    let mut results_str = serde_json::to_string_pretty(&results).unwrap();
                     ui::print_code_block("Execution Results", &results_str);
+
+                    let test_results = execute_test_commands(&plan, &agents_md).await?;
+                    if !test_results.is_empty() {
+                        results_str.push_str("\n\n--- Test Results ---\n");
+                        results_str.push_str(&test_results);
+                        ui::print_code_block("Test Results", &test_results);
+                    }
 
                     // Add both the agent's plan and the execution results to the conversation
                     messages.push(executor::ChatMessage {
@@ -314,6 +320,18 @@ async fn run_agentic_loop(
                         role: "user".to_string(),
                         content: format!("Here are the results of the execution:\n{}", results_str),
                     });
+
+                    // Update AGENTS.md with the activity
+                    let summary = serde_json::to_string_pretty(&plan).unwrap();
+                    if let Err(e) = utils::agents_md::append_activity_to_agents_md(&summary) {
+                        ui::print_warning(&format!("Failed to update AGENTS.md with activity: {}", e));
+                    }
+
+                    // Update AGENTS.md with the activity
+                    let summary = serde_json::to_string_pretty(&plan).unwrap();
+                    if let Err(e) = utils::agents_md::append_activity_to_agents_md(&summary) {
+                        ui::print_warning(&format!("Failed to update AGENTS.md with activity: {}", e));
+                    }
                 } else {
                     ui::print_warning("Plan rejected by user.");
                     messages.push(executor::ChatMessage {
@@ -418,18 +436,18 @@ pub async fn handle_chat_with_session(
 
     let mut messages = Vec::new();
 
-    // Load hierarchical rainy.md content and add it as a system message
-    match rainy_md::load_hierarchical_rainy_md() {
-        Ok(rainy_md_content) => {
-            if !rainy_md_content.is_empty() {
+    // Load hierarchical AGENTS.md content and add it as a system message
+    match agents_md::load_hierarchical_agents_md() {
+        Ok(agents_md_content) => {
+            if !agents_md_content.is_empty() {
                 messages.push(executor::ChatMessage {
                     role: "system".to_string(),
-                    content: format!("Here is the content from the rainy.md files:\n\n{}", rainy_md_content),
+                    content: format!("Here is the content from the AGENTS.md files:\n\n{}", agents_md_content),
                 });
             }
         }
         Err(e) => {
-            ui::print_warning(&format!("Failed to load rainy.md content: {}", e));
+            ui::print_warning(&format!("Failed to load AGENTS.md content: {}", e));
         }
     }
 
@@ -462,12 +480,57 @@ pub async fn handle_chat_with_session(
     Ok(())
 }
 
+async fn execute_test_commands(
+    plan: &Vec<tools::ToolCall>,
+    agents_md: &utils::agents_md::AgentsMd,
+) -> Result<String> {
+    let mut results = String::new();
+    let should_run_tests = plan.iter().any(|call| {
+        matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::DeleteFile { .. })
+    });
+
+    if should_run_tests {
+        if let Some(test_section) = agents_md.commands.iter().find(|s| s.heading.eq_ignore_ascii_case("Test")) {
+            ui::print_info("Found test commands in AGENTS.md.");
+
+            let run_commands = if agents_md.execution_confirmation {
+                ui::print_info("Do you want to run the test commands?");
+                ui::prompt_for_confirmation().unwrap_or(false)
+            } else {
+                true
+            };
+
+            if run_commands {
+                for command in &test_section.commands {
+                    ui::print_info(&format!("Running command: {}", command));
+                    let output = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(command)
+                        .output()
+                        .map_err(|e| crate::error::CliError::command_error(&format!("Failed to execute command: {}", e)))?;
+                    results.push_str(&format!("--- Output of '{}' ---\n", command));
+                    results.push_str(&String::from_utf8_lossy(&output.stdout));
+                    results.push_str(&String::from_utf8_lossy(&output.stderr));
+                    results.push_str("\n\n");
+                }
+            } else {
+                ui::print_warning("Test commands skipped by user.");
+            }
+        }
+    }
+
+    Ok(results)
+}
+
 async fn run_session_chat_loop(
     messages: &mut Vec<executor::ChatMessage>,
     agent: &executor::AgenticExecutor,
     session_id: &str,
     session_manager: &SessionManager,
 ) -> Result<()> {
+    let agents_md_content = agents_md::load_hierarchical_agents_md().unwrap_or_default();
+    let agents_md = agents_md::parse_agents_md(&agents_md_content);
+
     loop {
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
@@ -513,15 +576,22 @@ async fn run_session_chat_loop(
                 {
                     ui::print_info("Executing plan...");
                     let mut results = Vec::new();
-                    for tool_call in plan {
-                        let result = tools::execute_tool(tool_call)
+                    for tool_call in &plan {
+                        let result = tools::execute_tool(tool_call.clone())
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
                     }
 
-                    let results_str = serde_json::to_string_pretty(&results).unwrap();
+                    let mut results_str = serde_json::to_string_pretty(&results).unwrap();
                     ui::print_code_block("Execution Results", &results_str);
+
+                    let test_results = execute_test_commands(&plan, &agents_md).await?;
+                    if !test_results.is_empty() {
+                        results_str.push_str("\n\n--- Test Results ---\n");
+                        results_str.push_str(&test_results);
+                        ui::print_code_block("Test Results", &test_results);
+                    }
 
                     // Add both the agent's plan and the execution results to the conversation
                     messages.push(executor::ChatMessage {

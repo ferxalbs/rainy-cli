@@ -3,4 +3,4 @@ pub mod chat;
 pub mod generate;
 pub mod review;
 pub mod template;
-pub mod codebase;
+pub mod agent;
