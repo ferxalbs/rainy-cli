@@ -53,12 +53,21 @@ impl AgenticExecutor {
 "#;
 
         let system_prompt = format!(
-r#"You are Rainy Coder. Help users with coding tasks by creating JSON plans of tool calls.
+r#"You are Rainy Coder. Help users with coding tasks.
+
+First, think step-by-step about the user's request and how to solve it. Put your thoughts in <thinking>
+tags.
+
+Then, create a JSON plan of tool calls to execute your solution.
 
 Available tools:
 {}
 
-Response: JSON array of tool calls only. Format: [{{"tool": "name", "parameters": {{...}}}}]"#,
+Response format:
+<thinking>
+... your thoughts ...
+</thinking>
+[{{"tool": "name", "parameters": {{...}}}}, ...]"#,
             tool_definitions
         );
 

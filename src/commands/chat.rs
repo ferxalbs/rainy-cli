@@ -1,6 +1,30 @@
 use miette::Result;
 use crate::{config::Config, executor, tools, ui, utils::{self, context, history, agents_md, sessions::{SessionManager, ChatMessage}}};
 use std::path::PathBuf;
+use regex::Regex;
+
+fn tool_call_to_string(tool_call: &tools::ToolCall) -> String {
+    match tool_call {
+        tools::ToolCall::ReadFile { path } => format!("read_file on '{}'", path),
+        tools::ToolCall::WriteFile { path, .. } => format!("write_file to '{}'", path),
+        tools::ToolCall::PatchFile { path, .. } => format!("patch_file on '{}'", path),
+        tools::ToolCall::DeleteFile { path } => format!("delete_file on '{}'", path),
+        tools::ToolCall::ListFiles { path } => format!("list_files in '{}'", path),
+        tools::ToolCall::Grep { pattern, path } => format!("grep for '{}' in '{}'", pattern, path.as_deref().unwrap_or(".")),
+    }
+}
+
+fn parse_agent_response(response: &str) -> (String, String) {
+    let thinking_regex = Regex::new(r"<thinking>([\s\S]*?)</thinking>").unwrap();
+    let mut thinking_content = String::new();
+
+    if let Some(caps) = thinking_regex.captures(response) {
+        thinking_content = caps[1].trim().to_string();
+    }
+
+    let plan_str = thinking_regex.replace(response, "").trim().to_string();
+    (thinking_content, plan_str)
+}
 
 async fn generate_session_title_and_description(
     initial_message: &str,
@@ -91,12 +115,47 @@ Respond ONLY with a valid JSON in this format:
     Ok((title, description))
 }
 
+use std::fs;
+
 pub async fn handle_chat_command(
     message: Option<String>,
     context_files: Option<Vec<PathBuf>>,
     no_history: bool,
     config: &Config,
 ) -> Result<()> {
+    let agents_md_path = std::path::Path::new("AGENTS.md");
+    let mut agents_md_content = if agents_md_path.exists() {
+        fs::read_to_string(agents_md_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    let mut agents_md = utils::agents_md::parse_agents_md(&agents_md_content);
+
+    if !agents_md_content.contains("Trust-Level:") {
+        ui::print_info("First time in this project! Please choose a trust level for the AI agent.");
+        let levels = &["low (always ask)", "medium (ask for sensitive tasks)", "high (never ask)"];
+        let selection = dialoguer::Select::new()
+            .with_prompt("Select a trust level:")
+            .items(levels)
+            .default(0)
+            .interact()
+            .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read selection: {}", e)))?;
+
+        let chosen_level = match selection {
+            0 => "low",
+            1 => "medium",
+            2 => "high",
+            _ => "low",
+        };
+
+        agents_md.trust_level = chosen_level.to_string();
+        let trust_level_line = format!("\nTrust-Level: {}\n", chosen_level);
+        agents_md_content.push_str(&trust_level_line);
+        fs::write(agents_md_path, &agents_md_content)
+            .map_err(|e| crate::error::CliError::file_error("Failed to write to AGENTS.md", e))?;
+        ui::print_success(&format!("Trust level set to '{}' and saved in AGENTS.md.", chosen_level));
+    }
 
     ui::print_command_start("CHAT", &format!("{} Agentic Chat Mode", ui::CHAT));
     ui::print_chat_header();
@@ -270,11 +329,11 @@ async fn run_agentic_loop(
             });
         }
 
-        let pb = ui::print_progress("AI is thinking...");
+        let pb = ui::print_progress("Jules is thinking...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
             crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
         })?;
-        pb.finish_with_message("Response received");
+        pb.finish_with_message("Jules has a plan");
 
         let response_content = response
             .choices
@@ -282,19 +341,39 @@ async fn run_agentic_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
+        // The thinking content is parsed here but not displayed, as per the user's request
+        // to avoid cluttering the CLI. The "Jules is thinking..." message is shown to the user
+        // while awaiting the API response, which serves the purpose of indicating that the
+        // agent is processing the request. A more advanced implementation could use streaming
+        // to show the indicator only when the model is generating the <thinking> block, but
+        // the current SDK abstractions make this complex.
+        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
+
+
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
-        match serde_json::from_str::<Vec<tools::ToolCall>>(&response_content) {
+        match serde_json::from_str::<Vec<tools::ToolCall>>(&plan_str) {
             Ok(plan) => {
                 // Successfully parsed a plan
                 ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
 
-                if ui::prompt_for_confirmation()
-                    .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?
-                {
-                    ui::print_info("Executing plan...");
+                let should_confirm = match agents_md.trust_level.as_str() {
+                    "low" => true,
+                    "medium" => plan.iter().any(|call| matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::PatchFile { .. } | tools::ToolCall::DeleteFile { .. })),
+                    "high" => false,
+                    _ => true,
+                };
+
+                let mut confirmed = true;
+                if should_confirm {
+                    confirmed = ui::prompt_for_confirmation()
+                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?;
+                }
+
+                if confirmed {
                     let mut results = Vec::new();
                     for tool_call in &plan {
+                        ui::print_info(&format!("Jules is running {}...", tool_call_to_string(tool_call)));
                         let result = tools::execute_tool(tool_call.clone())
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
@@ -321,11 +400,6 @@ async fn run_agentic_loop(
                         content: format!("Here are the results of the execution:\n{}", results_str),
                     });
 
-                    // Update AGENTS.md with the activity
-                    let summary = serde_json::to_string_pretty(&plan).unwrap();
-                    if let Err(e) = utils::agents_md::append_activity_to_agents_md(&summary) {
-                        ui::print_warning(&format!("Failed to update AGENTS.md with activity: {}", e));
-                    }
 
                     // Update AGENTS.md with the activity
                     let summary = serde_json::to_string_pretty(&plan).unwrap();
@@ -552,11 +626,11 @@ async fn run_session_chat_loop(
             });
         }
 
-        let pb = ui::print_progress("AI is thinking...");
+        let pb = ui::print_progress("Jules is thinking...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
             crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
         })?;
-        pb.finish_with_message("Response received");
+        pb.finish_with_message("Jules has a plan");
 
         let response_content = response
             .choices
@@ -564,19 +638,38 @@ async fn run_session_chat_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
+        // The thinking content is parsed here but not displayed, as per the user's request
+        // to avoid cluttering the CLI. The "Jules is thinking..." message is shown to the user
+        // while awaiting the API response, which serves the purpose of indicating that the
+        // agent is processing the request. A more advanced implementation could use streaming
+        // to show the indicator only when the model is generating the <thinking> block, but
+        // the current SDK abstractions make this complex.
+        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
+
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
-        match serde_json::from_str::<Vec<tools::ToolCall>>(&response_content) {
+        match serde_json::from_str::<Vec<tools::ToolCall>>(&plan_str) {
             Ok(plan) => {
                 // Successfully parsed a plan
                 ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
 
-                if ui::prompt_for_confirmation()
-                    .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?
-                {
-                    ui::print_info("Executing plan...");
+                let should_confirm = match agents_md.trust_level.as_str() {
+                    "low" => true,
+                    "medium" => plan.iter().any(|call| matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::PatchFile { .. } | tools::ToolCall::DeleteFile { .. })),
+                    "high" => false,
+                    _ => true,
+                };
+
+                let mut confirmed = true;
+                if should_confirm {
+                    confirmed = ui::prompt_for_confirmation()
+                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?;
+                }
+
+                if confirmed {
                     let mut results = Vec::new();
                     for tool_call in &plan {
+                        ui::print_info(&format!("Jules is running {}...", tool_call_to_string(tool_call)));
                         let result = tools::execute_tool(tool_call.clone())
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;

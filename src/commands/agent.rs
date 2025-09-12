@@ -6,6 +6,8 @@ use std::path::Path;
 
 const AGENTS_MD_FILENAME: &str = "AGENTS.md";
 
+use crate::tools;
+
 #[derive(Args)]
 pub struct AgentArgs {
     #[clap(subcommand)]
@@ -16,6 +18,18 @@ pub struct AgentArgs {
 enum AgentCommand {
     /// Initializes the AGENTS.md file in the current project.
     Init,
+    /// Reads the content of a file.
+    ReadFile { path: String },
+    /// Writes content to a file.
+    WriteFile { path: String, content: String },
+    /// Patches a file with instructions.
+    PatchFile { path: String, instructions: String },
+    /// Deletes a file.
+    DeleteFile { path: String },
+    /// Lists files in a directory.
+    ListFiles { path: String },
+    /// Greps for a pattern in files.
+    Grep { pattern: String, path: Option<String> },
 }
 
 pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()> {
@@ -48,6 +62,36 @@ pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()
                 ui::CHECK,
                 AGENTS_MD_FILENAME
             ));
+        }
+        AgentCommand::ReadFile { path } => {
+            let result = tools::execute_tool(tools::ToolCall::ReadFile { path }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read file: {}", e)))?;
+            println!("{}", result.output);
+        }
+        AgentCommand::WriteFile { path, content } => {
+            let result = tools::execute_tool(tools::ToolCall::WriteFile { path, content }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to write file: {}", e)))?;
+            println!("{}", result.output);
+        }
+        AgentCommand::PatchFile { path, instructions } => {
+            let result = tools::execute_tool(tools::ToolCall::PatchFile { path, instructions }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to patch file: {}", e)))?;
+            println!("{}", result.output);
+        }
+        AgentCommand::DeleteFile { path } => {
+            let result = tools::execute_tool(tools::ToolCall::DeleteFile { path }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to delete file: {}", e)))?;
+            println!("{}", result.output);
+        }
+        AgentCommand::ListFiles { path } => {
+            let result = tools::execute_tool(tools::ToolCall::ListFiles { path }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to list files: {}", e)))?;
+            println!("{}", result.output);
+        }
+        AgentCommand::Grep { pattern, path } => {
+            let result = tools::execute_tool(tools::ToolCall::Grep { pattern, path }).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to grep files: {}", e)))?;
+            println!("{}", result.output);
         }
     }
     Ok(())
