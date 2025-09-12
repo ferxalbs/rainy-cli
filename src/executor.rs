@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use rainy_sdk::{RainyClient, ChatRole, ChatMessage as RainyChatMessage, ChatCompletionRequest};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -122,13 +121,3 @@ Response: JSON array of tool calls only. Format: [{{"tool": "name", "parameters"
     }
 }
 
-// Helper function to read file content, can be used by tools later
-pub async fn read_file_content(path: &Path) -> Result<String> {
-    if !path.exists() {
-        return Err(anyhow!("File does not exist: {}", path.display()));
-    }
-
-    tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))
-}

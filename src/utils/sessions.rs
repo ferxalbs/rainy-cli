@@ -170,13 +170,6 @@ impl SessionManager {
         Ok(())
     }
 
-    pub fn add_message_to_session(&self, session_id: &str, message: ChatMessage) -> Result<()> {
-        let mut session = self.load_session(session_id)?;
-        session.messages.push(message);
-        session.updated_at = Utc::now();
-        self.save_session(&session)?;
-        Ok(())
-    }
 
     pub fn save_session_messages(&self, session_id: &str, messages: &[ChatMessage]) -> Result<()> {
         let mut session = self.load_session(session_id)?;

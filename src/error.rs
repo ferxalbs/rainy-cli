@@ -27,22 +27,6 @@ pub enum CliError {
         source: std::io::Error,
     },
 
-    #[error("Analysis failed: {message}")]
-    #[diagnostic(code(rainy_cli::analysis))]
-    Analysis {
-        message: String,
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
-    },
-
-    #[error("Invalid input: {message}")]
-    #[diagnostic(code(rainy_cli::input))]
-    InvalidInput {
-        message: String,
-        #[help]
-        help: Option<String>,
-    },
-
     #[error("Command execution failed: {message}")]
     #[diagnostic(code(rainy_cli::command))]
     Command {
@@ -82,19 +66,6 @@ impl CliError {
         }
     }
 
-    pub fn analysis_error(message: impl Into<String>) -> Self {
-        Self::Analysis {
-            message: message.into(),
-            source: None,
-        }
-    }
-
-    pub fn invalid_input(message: impl Into<String>) -> Self {
-        Self::InvalidInput {
-            message: message.into(),
-            help: None,
-        }
-    }
 
     pub fn command_error(message: impl Into<String>) -> Self {
         Self::Command {
@@ -111,4 +82,3 @@ impl CliError {
     }
 }
 
-pub type Result<T> = miette::Result<T, CliError>;

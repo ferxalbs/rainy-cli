@@ -1,3 +1,4 @@
+/*
 use crate::ui;
 use anyhow::{Context, Result};
 use std::fs;
@@ -143,3 +144,4 @@ pub fn generate_rainy_md_content(context: &ProjectContext) -> String {
 
     content
 }
+*/
