@@ -350,10 +350,7 @@ async fn run_agentic_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        let (thinking_content, plan_str) = parse_agent_response(&response_content);
-        if !thinking_content.is_empty() {
-            ui::print_thinking_message(&thinking_content);
-        }
+        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
 
 
         // The agent's response should be a JSON plan.
@@ -433,7 +430,7 @@ async fn run_agentic_loop(
             }
             Err(_) => {
                 // Failed to parse a plan, treat as a regular chat message
-                ui::print_ai_message(&response_content);
+                ui::print_ai_message(&plan_str);
                 ui::print_response_metrics(&response, duration);
                 messages.push(executor::ChatMessage {
                     role: "assistant".to_string(),
@@ -651,10 +648,7 @@ async fn run_session_chat_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        let (thinking_content, plan_str) = parse_agent_response(&response_content);
-        if !thinking_content.is_empty() {
-            ui::print_thinking_message(&thinking_content);
-        }
+        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
 
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
@@ -726,7 +720,7 @@ async fn run_session_chat_loop(
             }
             Err(_) => {
                 // Failed to parse a plan, treat as a regular chat message
-                ui::print_ai_message(&response_content);
+                ui::print_ai_message(&plan_str);
                 ui::print_response_metrics(&response, duration);
                 messages.push(executor::ChatMessage {
                     role: "assistant".to_string(),

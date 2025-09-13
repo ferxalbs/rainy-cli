@@ -175,13 +175,6 @@ pub fn print_agent_plan_conversationally(plan: &Vec<crate::tools::ToolCall>) {
     println!();
 }
 
-pub fn print_thinking_message(message: &str) {
-    println!();
-    println!("{}", style("Rainy AI is thinking...").dim());
-    println!("{}", style(message).dim());
-    println!();
-}
-
 pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
     print!("{} {}", style("Do you want to execute this plan? (y/n)").bold().yellow(), "> ");
     io::stdout().flush()?;
