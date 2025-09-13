@@ -132,6 +132,7 @@ pub fn print_chat_header() {
 }
 
 pub fn print_ai_message(message: &str) {
+    println!();
     println!("{}", message);
     println!();
 }
