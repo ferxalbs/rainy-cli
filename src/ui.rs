@@ -132,7 +132,7 @@ pub fn print_chat_header() {
 }
 
 pub fn print_ai_message(message: &str) {
-    println!("{} {}", style("AI:").green().bold(), message);
+    println!("{}", message);
     println!();
 }
 
@@ -145,7 +145,7 @@ pub fn print_generation_header(description: &str) {
 }
 
 pub fn prompt_input() -> Result<String, std::io::Error> {
-    print!("{} ", style("You:").cyan().bold());
+    print!("{} ", style(">").cyan().bold());
     io::stdout().flush()?;
 
     let mut input = String::new();
@@ -159,6 +159,29 @@ pub fn print_agent_plan(plan_json: &str) {
     print_code_block("Execution Plan", plan_json);
 }
 
+pub fn print_agent_plan_conversationally(plan: &Vec<crate::tools::ToolCall>) {
+    println!("{}", style("Okay, I will do the following:").green());
+    for (i, tool_call) in plan.iter().enumerate() {
+        let message = match tool_call {
+            crate::tools::ToolCall::ReadFile { path } => format!("Read the file `{}`", path),
+            crate::tools::ToolCall::WriteFile { path, .. } => format!("Write to the file `{}`", path),
+            crate::tools::ToolCall::PatchFile { path, .. } => format!("Patch the file `{}`", path),
+            crate::tools::ToolCall::DeleteFile { path } => format!("Delete the file `{}`", path),
+            crate::tools::ToolCall::ListFiles { path } => format!("List the files in `{}`", path),
+            crate::tools::ToolCall::Grep { pattern, path } => format!("Search for `{}` in `{}`", pattern, path.as_deref().unwrap_or(".")),
+        };
+        println!("  {}. {}", i + 1, message);
+    }
+    println!();
+}
+
+pub fn print_thinking_message(message: &str) {
+    println!();
+    println!("{}", style("Rainy AI is thinking...").dim());
+    println!("{}", style(message).dim());
+    println!();
+}
+
 pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
     print!("{} {}", style("Do you want to execute this plan? (y/n)").bold().yellow(), "> ");
     io::stdout().flush()?;
@@ -166,6 +189,17 @@ pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     Ok(input.trim().eq_ignore_ascii_case("y"))
+}
+
+pub fn print_file_modification_summary(modifications: &Vec<crate::utils::diff::FileModification>) {
+    println!();
+    println!("{}", style("File Modification Summary:").bold().yellow());
+    for modification in modifications {
+        let added = format!("+{}", modification.lines_added).green();
+        let removed = format!("-{}", modification.lines_removed).red();
+        println!("  - {}: {} {}", modification.path, added, removed);
+    }
+    println!();
 }
 
 pub fn print_response_metrics(response: &rainy_sdk::ChatCompletionResponse, duration: std::time::Duration) {

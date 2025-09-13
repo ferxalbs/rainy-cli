@@ -3,27 +3,36 @@ use crate::{config::Config, executor, tools, ui, utils::{self, context, history,
 use std::path::PathBuf;
 use regex::Regex;
 
-fn tool_call_to_string(tool_call: &tools::ToolCall) -> String {
+fn tool_call_to_running_string(tool_call: &tools::ToolCall) -> String {
     match tool_call {
-        tools::ToolCall::ReadFile { path } => format!("read_file on '{}'", path),
-        tools::ToolCall::WriteFile { path, .. } => format!("write_file to '{}'", path),
-        tools::ToolCall::PatchFile { path, .. } => format!("patch_file on '{}'", path),
-        tools::ToolCall::DeleteFile { path } => format!("delete_file on '{}'", path),
-        tools::ToolCall::ListFiles { path } => format!("list_files in '{}'", path),
-        tools::ToolCall::Grep { pattern, path } => format!("grep for '{}' in '{}'", pattern, path.as_deref().unwrap_or(".")),
+        tools::ToolCall::ReadFile { path } => format!("Reading file '{}'...", path),
+        tools::ToolCall::WriteFile { path, .. } => format!("Writing to file '{}'...", path),
+        tools::ToolCall::PatchFile { path, .. } => format!("Patching file '{}'...", path),
+        tools::ToolCall::DeleteFile { path } => format!("Deleting file '{}'...", path),
+        tools::ToolCall::ListFiles { path } => format!("Listing files in '{}'...", path),
+        tools::ToolCall::Grep { pattern, path } => format!("Searching for '{}' in '{}'...", pattern, path.as_deref().unwrap_or(".")),
     }
 }
 
 fn parse_agent_response(response: &str) -> (String, String) {
-    let thinking_regex = Regex::new(r"<thinking>([\s\S]*?)</thinking>").unwrap();
-    let mut thinking_content = String::new();
-
-    if let Some(caps) = thinking_regex.captures(response) {
-        thinking_content = caps[1].trim().to_string();
+    // Try to parse Qwen-style ReAct format first
+    let qwen_react_regex = Regex::new(r"Thought:([\s\S]*?)Action:([\s\S]*)").unwrap();
+    if let Some(caps) = qwen_react_regex.captures(response) {
+        let thought = caps.get(1).map_or("", |m| m.as_str()).trim().to_string();
+        let action = caps.get(2).map_or("", |m| m.as_str()).trim().to_string();
+        return (thought, action);
     }
 
-    let plan_str = thinking_regex.replace(response, "").trim().to_string();
-    (thinking_content, plan_str)
+    // Fallback to regex for <thinking> tags
+    let thinking_regex = Regex::new(r"<thinking>([\s\S]*?)</thinking>").unwrap();
+    if let Some(caps) = thinking_regex.captures(response) {
+        let thinking_content = caps[1].trim().to_string();
+        let plan_str = thinking_regex.replace(response, "").trim().to_string();
+        return (thinking_content, plan_str);
+    }
+
+    // If no specific format is found, return the original response as plan
+    (String::new(), response.to_string())
 }
 
 async fn generate_session_title_and_description(
@@ -32,7 +41,7 @@ async fn generate_session_title_and_description(
     model: &str,
 ) -> Result<(String, String)> {
     let client = rainy_sdk::RainyClient::with_api_key(api_key)
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create client: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create API client: {}. This might be due to an invalid API key format.", e)))?;
 
     let prompt = format!(
         r#"Analyze the following user message and generate:
@@ -67,7 +76,7 @@ Respond ONLY with a valid JSON in this format:
     };
 
     let response = client.create_chat_completion(request).await
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to generate session info: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to generate session info from AI: {}. Please check your network connection and API provider status.", e)))?;
 
     if let Some(choice) = response.choices.first() {
         let content = choice.message.content.trim();
@@ -110,7 +119,7 @@ Respond ONLY with a valid JSON in this format:
         initial_message.to_string()
     };
 
-    let description = format!("Conversación sobre: {}", initial_message);
+    let description = format!("Conversation about: {}", initial_message);
 
     Ok((title, description))
 }
@@ -140,7 +149,7 @@ pub async fn handle_chat_command(
             .items(levels)
             .default(0)
             .interact()
-            .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read selection: {}", e)))?;
+            .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read selection for trust level: {}", e)))?;
 
         let chosen_level = match selection {
             0 => "low",
@@ -153,7 +162,7 @@ pub async fn handle_chat_command(
         let trust_level_line = format!("\nTrust-Level: {}\n", chosen_level);
         agents_md_content.push_str(&trust_level_line);
         fs::write(agents_md_path, &agents_md_content)
-            .map_err(|e| crate::error::CliError::file_error("Failed to write to AGENTS.md", e))?;
+            .map_err(|e| crate::error::CliError::file_error("Failed to write to AGENTS.md. Please check file permissions.", e))?;
         ui::print_success(&format!("Trust level set to '{}' and saved in AGENTS.md.", chosen_level));
     }
 
@@ -162,39 +171,39 @@ pub async fn handle_chat_command(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
 
     // Detectar si necesitamos crear una sesión automáticamente
     let session_manager = SessionManager::new()
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize session manager: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize session manager: {}. Please check permissions of the session directory.", e)))?;
 
     let (use_session, session_id) = if let Some(initial_msg) = &message {
-        // Si hay mensaje inicial, crear sesión automáticamente
-        ui::print_info("🎯 Creando sesión automática para tu consulta...");
+        // If there is an initial message, create a session automatically
+        ui::print_info("🎯 Creating automatic session for your query...");
 
-        // Generar título y descripción usando Llama-3.1-8b-instant
+        // Generate title and description using Llama-3.1-8b-instant
         let (title, description) = generate_session_title_and_description(initial_msg, &api_key, &config.title_model)
             .await
             .unwrap_or_else(|_| {
-                // Fallback si falla la generación automática
+                // Fallback if automatic generation fails
                 let title = if initial_msg.len() > 47 {
                     format!("{}...", &initial_msg[..47])
                 } else {
                     initial_msg.clone()
                 };
-                let description = format!("Conversación sobre: {}", initial_msg);
+                let description = format!("Conversation about: {}", initial_msg);
                 (title, description)
             });
 
-        // Crear la sesión
+        // Create the session
         let session = session_manager.create_session(title.clone(), Some(description.clone()))
-            .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create session: {}", e)))?;
+            .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create session: {}. Please check permissions of the session directory.", e)))?;
 
-        // Mostrar información de la sesión creada
-        ui::print_success(&format!("✅ Sesión creada: \"{}\"", title));
-        ui::print_info(&format!("📝 Descripción: {}", description));
-        ui::print_info(&format!("🆔 ID de sesión: {}", session.id));
-        ui::print_info(&format!("💡 Puedes usar esta sesión en el futuro con: rainy-cli session chat {} <mensaje>", session.id));
+        // Show information about the created session
+        ui::print_success(&format!("✅ Session created: \"{}\"", title));
+        ui::print_info(&format!("📝 Description: {}", description));
+        ui::print_info(&format!("🆔 Session ID: {}", session.id));
+        ui::print_info(&format!("💡 You can use this session in the future with: rainy-cli session chat {} <message>", session.id));
         println!();
 
         (true, Some(session.id))
@@ -207,7 +216,7 @@ pub async fn handle_chat_command(
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
 
     let mut messages = Vec::new();
 
@@ -226,7 +235,7 @@ pub async fn handle_chat_command(
         }
     }
 
-    // Si estamos usando una sesión, cargar sus mensajes
+    // If we are using a session, load its messages
     if let Some(ref session_id) = session_id {
         if let Ok(session) = session_manager.load_session(session_id) {
             let message_count = session.messages.len();
@@ -238,10 +247,10 @@ pub async fn handle_chat_command(
                 .collect();
 
             messages.extend(session_messages);
-            ui::print_info(&format!("📚 Cargados {} mensajes previos de la sesión", message_count));
+            ui::print_info(&format!("📚 Loaded {} previous messages from the session", message_count));
         }
     } else if !no_history {
-        // Si no usamos sesión, cargar historial normal (solo si no está deshabilitado)
+        // If we are not using a session, load normal history (only if not disabled)
         if let Ok(history) = history::load_conversation_history_truncated(500) {
             messages.extend(history);
             if !messages.is_empty() {
@@ -256,7 +265,7 @@ pub async fn handle_chat_command(
     if let Some(files) = context_files {
         if !files.is_empty() {
             let context_str = context::collect_context_from_paths(&files)
-                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from paths", e))?;
+                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from file paths.", e))?;
             let paths_str: Vec<String> = files.iter().map(|p| p.display().to_string()).collect();
             messages.push(executor::ChatMessage {
                 role: "user".to_string(),
@@ -281,14 +290,14 @@ pub async fn handle_chat_command(
     } else {
         // Start with an empty user message to kick off the loop
         let input =
-            ui::prompt_input().map_err(|e| crate::error::CliError::file_error("Failed to read input", e))?;
+            ui::prompt_input().map_err(|e| crate::error::CliError::file_error("Failed to read user input. Please check terminal permissions.", e))?;
         messages.push(executor::ChatMessage {
             role: "user".to_string(),
             content: input,
         });
     }
 
-    // Ejecutar el loop con o sin sesión
+    // Run the loop with or without a session
     if use_session {
         if let Some(session_id) = session_id {
             run_session_chat_loop(&mut messages, &agent, &session_id, &session_manager).await?;
@@ -313,7 +322,7 @@ async fn run_agentic_loop(
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
             let mut input = ui::prompt_input()
-                .map_err(|e| crate::error::CliError::file_error("Failed to read user input", e))?;
+                .map_err(|e| crate::error::CliError::file_error("Failed to read user input. Please check terminal permissions.", e))?;
 
             if input.starts_with('@') {
                 input = handle_at_command(&input).await?;
@@ -329,11 +338,11 @@ async fn run_agentic_loop(
             });
         }
 
-        let pb = ui::print_progress("Jules is thinking...");
+        let pb = ui::print_progress("Rainy AI is working...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
+            crate::error::CliError::api_error(&format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
         })?;
-        pb.finish_with_message("Jules has a plan");
+        pb.finish_and_clear();
 
         let response_content = response
             .choices
@@ -341,21 +350,19 @@ async fn run_agentic_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        // The thinking content is parsed here but not displayed, as per the user's request
-        // to avoid cluttering the CLI. The "Jules is thinking..." message is shown to the user
-        // while awaiting the API response, which serves the purpose of indicating that the
-        // agent is processing the request. A more advanced implementation could use streaming
-        // to show the indicator only when the model is generating the <thinking> block, but
-        // the current SDK abstractions make this complex.
-        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
+        let (thinking_content, plan_str) = parse_agent_response(&response_content);
+        if !thinking_content.is_empty() {
+            ui::print_thinking_message(&thinking_content);
+        }
 
 
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
         match serde_json::from_str::<Vec<tools::ToolCall>>(&plan_str) {
             Ok(plan) => {
-                // Successfully parsed a plan
-                ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
+                if !plan.is_empty() {
+                    ui::print_agent_plan_conversationally(&plan);
+                }
 
                 let should_confirm = match agents_md.trust_level.as_str() {
                     "low" => true,
@@ -364,17 +371,19 @@ async fn run_agentic_loop(
                     _ => true,
                 };
 
-                let mut confirmed = true;
-                if should_confirm {
-                    confirmed = ui::prompt_for_confirmation()
-                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?;
-                }
+                let confirmed = if should_confirm {
+                    ui::prompt_for_confirmation()
+                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation. Please check terminal permissions.", e))?
+                } else {
+                    true
+                };
 
                 if confirmed {
-                    let mut results = Vec::new();
+                    let mut file_modifications: Vec<utils::diff::FileModification> = Vec::new();
+                    let mut results: Vec<crate::tools::ToolResult> = Vec::new();
                     for tool_call in &plan {
-                        ui::print_info(&format!("Jules is running {}...", tool_call_to_string(tool_call)));
-                        let result = tools::execute_tool(tool_call.clone())
+                        ui::print_info(&tool_call_to_running_string(tool_call));
+                        let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
@@ -388,6 +397,10 @@ async fn run_agentic_loop(
                         results_str.push_str("\n\n--- Test Results ---\n");
                         results_str.push_str(&test_results);
                         ui::print_code_block("Test Results", &test_results);
+                    }
+
+                    if !file_modifications.is_empty() {
+                        ui::print_file_modification_summary(&file_modifications);
                     }
 
                     // Add both the agent's plan and the execution results to the conversation
@@ -460,7 +473,7 @@ async fn handle_at_command(input: &str) -> Result<String> {
     }
 
     let selection = ui::prompt_input_with_prompt("Select a file to add to the context (or 0 to cancel):")
-        .map_err(|e| crate::error::CliError::file_error("Failed to read input", e))?;
+        .map_err(|e| crate::error::CliError::file_error("Failed to read file selection. Please check terminal permissions.", e))?;
 
     let selection: usize = match selection.trim().parse() {
         Ok(num) => num,
@@ -473,7 +486,7 @@ async fn handle_at_command(input: &str) -> Result<String> {
     if selection > 0 && selection <= found_files.len() {
         let selected_path = &found_files[selection - 1];
         let content = std::fs::read_to_string(selected_path)
-            .map_err(|e| crate::error::CliError::file_error("Failed to read file", e))?;
+            .map_err(|e| crate::error::CliError::file_error(&format!("Failed to read selected file: {}", selected_path.display()), e))?;
         let new_input = format!(
             "Using file `{}` as context.\n\n---\n\n{}\n\n---\n\n{}",
             selected_path.display(),
@@ -499,14 +512,14 @@ pub async fn handle_chat_with_session(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
 
     let agent = executor::AgenticExecutor::new(
         api_key.to_string(),
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
 
     let mut messages = Vec::new();
 
@@ -532,7 +545,7 @@ pub async fn handle_chat_with_session(
     if let Some(files) = context_files {
         if !files.is_empty() {
             let context_str = context::collect_context_from_paths(&files)
-                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from paths", e))?;
+                .map_err(|e| crate::error::CliError::context_error("Failed to collect context from file paths.", e))?;
             let paths_str: Vec<String> = files.iter().map(|p| p.display().to_string()).collect();
             messages.push(executor::ChatMessage {
                 role: "user".to_string(),
@@ -581,7 +594,7 @@ async fn execute_test_commands(
                         .arg("-c")
                         .arg(command)
                         .output()
-                        .map_err(|e| crate::error::CliError::command_error(&format!("Failed to execute command: {}", e)))?;
+                        .map_err(|e| crate::error::CliError::command_error(&format!("Failed to execute test command: `{}`. Error: {}", command, e)))?;
                     results.push_str(&format!("--- Output of '{}' ---\n", command));
                     results.push_str(&String::from_utf8_lossy(&output.stdout));
                     results.push_str(&String::from_utf8_lossy(&output.stderr));
@@ -609,7 +622,7 @@ async fn run_session_chat_loop(
         // If the last message was from the assistant, get user input
         if messages.last().map_or(true, |m| m.role == "assistant") {
             let mut input = ui::prompt_input()
-                .map_err(|e| crate::error::CliError::file_error("Failed to read user input", e))?;
+                .map_err(|e| crate::error::CliError::file_error("Failed to read user input. Please check terminal permissions.", e))?;
 
             if input.starts_with('@') {
                 input = handle_at_command(&input).await?;
@@ -626,11 +639,11 @@ async fn run_session_chat_loop(
             });
         }
 
-        let pb = ui::print_progress("Jules is thinking...");
+        let pb = ui::print_progress("Rainy AI is working...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
+            crate::error::CliError::api_error(&format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
         })?;
-        pb.finish_with_message("Jules has a plan");
+        pb.finish_and_clear();
 
         let response_content = response
             .choices
@@ -638,20 +651,18 @@ async fn run_session_chat_loop(
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
-        // The thinking content is parsed here but not displayed, as per the user's request
-        // to avoid cluttering the CLI. The "Jules is thinking..." message is shown to the user
-        // while awaiting the API response, which serves the purpose of indicating that the
-        // agent is processing the request. A more advanced implementation could use streaming
-        // to show the indicator only when the model is generating the <thinking> block, but
-        // the current SDK abstractions make this complex.
-        let (_thinking_content, plan_str) = parse_agent_response(&response_content);
+        let (thinking_content, plan_str) = parse_agent_response(&response_content);
+        if !thinking_content.is_empty() {
+            ui::print_thinking_message(&thinking_content);
+        }
 
         // The agent's response should be a JSON plan.
         // Attempt to parse it.
         match serde_json::from_str::<Vec<tools::ToolCall>>(&plan_str) {
             Ok(plan) => {
-                // Successfully parsed a plan
-                ui::print_agent_plan(&serde_json::to_string_pretty(&plan).unwrap());
+                if !plan.is_empty() {
+                    ui::print_agent_plan_conversationally(&plan);
+                }
 
                 let should_confirm = match agents_md.trust_level.as_str() {
                     "low" => true,
@@ -660,17 +671,19 @@ async fn run_session_chat_loop(
                     _ => true,
                 };
 
-                let mut confirmed = true;
-                if should_confirm {
-                    confirmed = ui::prompt_for_confirmation()
-                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation", e))?;
-                }
+                let confirmed = if should_confirm {
+                    ui::prompt_for_confirmation()
+                        .map_err(|e| crate::error::CliError::file_error("Failed to read confirmation. Please check terminal permissions.", e))?
+                } else {
+                    true
+                };
 
                 if confirmed {
-                    let mut results = Vec::new();
+                    let mut file_modifications: Vec<utils::diff::FileModification> = Vec::new();
+                    let mut results: Vec<crate::tools::ToolResult> = Vec::new();
                     for tool_call in &plan {
-                        ui::print_info(&format!("Jules is running {}...", tool_call_to_string(tool_call)));
-                        let result = tools::execute_tool(tool_call.clone())
+                        ui::print_info(&tool_call_to_running_string(tool_call));
+                        let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
                             .await
                             .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
                         results.push(result);
@@ -684,6 +697,10 @@ async fn run_session_chat_loop(
                         results_str.push_str("\n\n--- Test Results ---\n");
                         results_str.push_str(&test_results);
                         ui::print_code_block("Test Results", &test_results);
+                    }
+
+                    if !file_modifications.is_empty() {
+                        ui::print_file_modification_summary(&file_modifications);
                     }
 
                     // Add both the agent's plan and the execution results to the conversation

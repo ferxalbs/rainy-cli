@@ -37,6 +37,7 @@ pub struct AgentsMd {
     pub commands: Vec<CommandSection>,
     pub execution_confirmation: bool,
     pub trust_level: String,
+    pub mcp_permissions: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,11 +50,13 @@ pub fn parse_agents_md(content: &str) -> AgentsMd {
     let mut commands = Vec::new();
     let mut execution_confirmation = true;
     let mut trust_level = "low".to_string();
+    let mut mcp_permissions = Vec::new();
 
     let heading_regex = Regex::new(r"^##\s+(.*)").unwrap();
     let command_regex = Regex::new(r"```sh\n((.|\n)*?)```").unwrap();
     let confirmation_regex = Regex::new(r"Execution-Confirmation:\s*(disabled|enabled)").unwrap();
     let trust_level_regex = Regex::new(r"Trust-Level:\s*(low|medium|high)").unwrap();
+    let mcp_permission_regex = Regex::new(r"MCP-Permission:\s*(.*)").unwrap();
 
     for line in content.lines() {
         if let Some(caps) = confirmation_regex.captures(line) {
@@ -63,6 +66,9 @@ pub fn parse_agents_md(content: &str) -> AgentsMd {
         }
         if let Some(caps) = trust_level_regex.captures(line) {
             trust_level = caps[1].to_string();
+        }
+        if let Some(caps) = mcp_permission_regex.captures(line) {
+            mcp_permissions.push(caps[1].trim().to_string());
         }
     }
 
@@ -89,6 +95,7 @@ pub fn parse_agents_md(content: &str) -> AgentsMd {
         commands,
         execution_confirmation,
         trust_level,
+        mcp_permissions,
     }
 }
 

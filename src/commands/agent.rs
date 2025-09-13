@@ -55,7 +55,7 @@ pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()
             let content = utils::agents_md::generate_agents_md_content(&context);
 
             fs::write(path, content)
-                .map_err(|e| crate::error::CliError::file_error(&format!("Failed to create {}", AGENTS_MD_FILENAME), e))?;
+                .map_err(|e| crate::error::CliError::file_error(&format!("Failed to create {}: {}. Please check file permissions.", AGENTS_MD_FILENAME, e), e))?;
 
             ui::print_success(&format!(
                 "{} Created `{}` with auto-detected project context. You can edit this file to provide project-specific instructions.",
@@ -64,33 +64,39 @@ pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()
             ));
         }
         AgentCommand::ReadFile { path } => {
-            let result = tools::execute_tool(tools::ToolCall::ReadFile { path }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read file: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::ReadFile { path: path.clone() }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::WriteFile { path, content } => {
-            let result = tools::execute_tool(tools::ToolCall::WriteFile { path, content }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to write file: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::WriteFile { path: path.clone(), content }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to write to file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::PatchFile { path, instructions } => {
-            let result = tools::execute_tool(tools::ToolCall::PatchFile { path, instructions }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to patch file: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::PatchFile { path: path.clone(), instructions }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to patch file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::DeleteFile { path } => {
-            let result = tools::execute_tool(tools::ToolCall::DeleteFile { path }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to delete file: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::DeleteFile { path: path.clone() }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to delete file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::ListFiles { path } => {
-            let result = tools::execute_tool(tools::ToolCall::ListFiles { path }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to list files: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::ListFiles { path: path.clone() }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to list files in '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::Grep { pattern, path } => {
-            let result = tools::execute_tool(tools::ToolCall::Grep { pattern, path }).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to grep files: {}", e)))?;
+            let mut file_modifications = Vec::new();
+            let result = tools::execute_tool(tools::ToolCall::Grep { pattern: pattern.clone(), path }, &mut file_modifications).await
+                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to grep files for pattern '{}': {}", pattern, e)))?;
             println!("{}", result.output);
         }
     }

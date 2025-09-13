@@ -1,4 +1,4 @@
-use rainy_cli::tools::{execute_tool, ToolCall};
+use rainy_cli::{tools::{execute_tool, ToolCall}, utils::diff::FileModification};
 use std::fs;
 use tempfile::tempdir;
 
@@ -16,14 +16,15 @@ async fn test_file_operations() {
         path: test_file_path.to_str().unwrap().to_string(),
         content: test_content.to_string(),
     };
-    let write_result = execute_tool(write_call).await.unwrap();
+    let mut mods = Vec::new();
+    let write_result = execute_tool(write_call, &mut mods).await.unwrap();
     assert!(write_result.success);
     assert!(test_file_path.exists());
 
     let read_call = ToolCall::ReadFile {
         path: test_file_path.to_str().unwrap().to_string(),
     };
-    let read_result = execute_tool(read_call).await.unwrap();
+    let read_result = execute_tool(read_call, &mut mods).await.unwrap();
     assert!(read_result.success);
     assert_eq!(read_result.output, test_content);
 
@@ -37,7 +38,7 @@ async fn test_file_operations() {
     let list_call = ToolCall::ListFiles {
         path: root.to_str().unwrap().to_string(),
     };
-    let list_result = execute_tool(list_call).await.unwrap();
+    let list_result = execute_tool(list_call, &mut mods).await.unwrap();
     assert!(list_result.success);
     assert!(list_result.output.contains("[F] test.txt"));
     assert!(list_result.output.contains("[F] another.txt"));
@@ -48,7 +49,7 @@ async fn test_file_operations() {
     let delete_call = ToolCall::DeleteFile {
         path: test_file_path.to_str().unwrap().to_string(),
     };
-    let delete_result = execute_tool(delete_call).await.unwrap();
+    let delete_result = execute_tool(delete_call, &mut mods).await.unwrap();
     assert!(delete_result.success);
     assert!(!test_file_path.exists());
 
@@ -60,7 +61,8 @@ async fn test_read_nonexistent_file() {
     let read_call = ToolCall::ReadFile {
         path: "nonexistent_file.txt".to_string(),
     };
-    let read_result = execute_tool(read_call).await.unwrap();
+    let mut mods = Vec::new();
+    let read_result = execute_tool(read_call, &mut mods).await.unwrap();
     assert!(!read_result.success);
     assert!(read_result.output.contains("Failed to read file"));
 }
@@ -77,7 +79,8 @@ async fn test_grep_tool() {
         pattern: "world".to_string(),
         path: Some(file_path.to_str().unwrap().to_string()),
     };
-    let grep_result = execute_tool(grep_call).await.unwrap();
+    let mut mods = Vec::new();
+    let grep_result = execute_tool(grep_call, &mut mods).await.unwrap();
     assert!(grep_result.success);
     assert!(grep_result.output.contains("1:Hello, world!"));
     assert!(grep_result.output.contains("3:Another line with world."));
@@ -104,7 +107,8 @@ async fn test_patch_tool() {
         path: file_path.to_str().unwrap().to_string(),
         instructions: patch_instructions.to_string(),
     };
-    let patch_result = execute_tool(patch_call).await.unwrap();
+    let mut mods = Vec::new();
+    let patch_result = execute_tool(patch_call, &mut mods).await.unwrap();
     assert!(patch_result.success);
 
     let patched_content = fs::read_to_string(&file_path).unwrap();

@@ -1,5 +1,7 @@
 pub mod context;
+pub mod diff;
 pub mod git;
+pub mod mcp;
 pub mod history;
 pub mod rainy_md;
 pub mod sessions;

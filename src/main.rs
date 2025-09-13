@@ -37,6 +37,10 @@ struct Cli {
     /// Override the default model
     #[arg(short, long, global = true)]
     model: Option<String>,
+
+    /// Output in JSON format
+    #[arg(long, global = true)]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -223,6 +227,8 @@ enum Commands {
     },
     /// Interact with the AI agent
     Agent(commands::agent::AgentArgs),
+    /// Manage MCP servers and tools
+    Mcp(commands::mcp::McpArgs),
     /// Configure CLI settings
     Config {
         /// Show current configuration
@@ -247,7 +253,7 @@ enum Commands {
 async fn main() -> Result<()> {
     // Load configuration
     let mut config = config::Config::load()
-        .map_err(|e| error::CliError::config_error(&format!("Failed to load configuration: {}", e)))?;
+        .map_err(|e| error::CliError::config_error(&format!("Failed to load configuration: {}. You can try resetting the configuration with `rainy-cli config --reset` or checking the file permissions.", e)))?;
 
 
     let cli = Cli::parse();
@@ -286,7 +292,7 @@ async fn main() -> Result<()> {
 
         let api_key = loop {
             let key = ui::prompt_api_key()
-                .map_err(|e| error::CliError::file_error("Failed to read API key input", e))?;
+                .map_err(|e| error::CliError::file_error("Failed to read API key from input. Please check your terminal permissions.", e))?;
 
             if key.is_empty() {
                 ui::print_error("API key cannot be empty. Please try again.");
@@ -298,7 +304,7 @@ async fn main() -> Result<()> {
 
         config
             .set_api_key(api_key.clone())
-            .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}", e)))?;
+            .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}. Please check the permissions of the configuration file.", e)))?;
         ui::print_success("API key saved successfully!");
         println!();
     }
@@ -309,13 +315,13 @@ async fn main() -> Result<()> {
             paths,
             analysis_type,
             apply: _,
-        } => commands::analyze::handle_analyze_command(paths, analysis_type, &config).await,
+        } => commands::analyze::handle_analyze_command(paths, analysis_type, &config, cli.json).await,
         Commands::Generate {
             description,
             output,
             with_tests: _,
             with_docs: _,
-        } => commands::generate::handle_generate_command(description, output, &config).await,
+        } => commands::generate::handle_generate_command(description, output, &config, cli.json).await,
         Commands::Template {
             template,
             name,
@@ -326,7 +332,7 @@ async fn main() -> Result<()> {
             focus,
             git,
             git_ref,
-        } => commands::review::handle_review_command(paths, focus, git, git_ref, &config).await,
+        } => commands::review::handle_review_command(paths, focus, git, git_ref, &config, cli.json).await,
         Commands::Chat {
             message,
             context_files,
@@ -334,6 +340,7 @@ async fn main() -> Result<()> {
         } => commands::chat::handle_chat_command(message, Some(context_files), no_history, &config).await,
         Commands::Session { action } => handle_session_command(action, &config).await,
         Commands::Agent(args) => commands::agent::handle_agent_command(args, &config).await,
+        Commands::Mcp(args) => commands::mcp::handle_mcp_command(args, &config).await,
         Commands::Config { .. } => {
             // Already handled above
             Ok(())
@@ -354,7 +361,7 @@ async fn handle_config_command(
         *config = config::Config::default();
         config
             .save()
-            .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}", e)))?;
+            .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}. Please check the permissions of the configuration file.", e)))?;
         ui::print_success("Configuration reset to defaults!");
         return Ok(());
     }
@@ -362,7 +369,7 @@ async fn handle_config_command(
     if let Some(api_key) = set_api_key {
         config
             .set_api_key(api_key.clone())
-            .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}", e)))?;
+            .map_err(|e| error::CliError::config_error(&format!("Failed to save API key: {}. Please check the permissions of the configuration file.", e)))?;
         ui::print_success("API key updated successfully!");
     }
 
@@ -370,7 +377,7 @@ async fn handle_config_command(
         config.default_model = model.clone();
         config
             .save()
-            .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}", e)))?;
+            .map_err(|e| error::CliError::config_error(&format!("Failed to save configuration: {}. Please check the permissions of the configuration file.", e)))?;
         ui::print_success(&format!("Default model set to: {}", model));
     }
 
@@ -401,7 +408,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
     use crate::utils::sessions::SessionManager;
 
     let session_manager = SessionManager::new()
-        .map_err(|e| error::CliError::api_error(&format!("Failed to initialize session manager: {}", e)))?;
+        .map_err(|e| error::CliError::api_error(&format!("Failed to initialize session manager: {}. Please check if the session directory exists and has the correct permissions.", e)))?;
 
     match action {
         SessionAction::Create { name, description } => {
@@ -421,7 +428,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to create session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session creation failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Session creation failed: {}. Please check the session directory permissions.", e)).into());
                 }
             }
         }
@@ -465,7 +472,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to list sessions: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session listing failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Session listing failed: {}. Please check the session directory.", e)).into());
                 }
             }
         }
@@ -508,7 +515,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to load session '{}': {}", id, e));
-                    return Err(error::CliError::api_error(&format!("Session loading failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to load session '{}': {}. Please ensure the session ID is correct and the session file exists.", id, e)).into());
                 }
             }
         }
@@ -549,7 +556,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to load session '{}': {}", id, e));
-                    return Err(error::CliError::api_error(&format!("Session loading failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to load session '{}': {}. Please ensure the session ID is correct and the session file exists.", id, e)).into());
                 }
             }
         }
@@ -563,7 +570,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to rename session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session rename failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to rename session '{}': {}", id, e)).into());
                 }
             }
         }
@@ -577,7 +584,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to update session description: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session description update failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to update session description for '{}': {}", id, e)).into());
                 }
             }
         }
@@ -591,7 +598,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to add tag to session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session tag addition failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to add tag to session '{}': {}", id, e)).into());
                 }
             }
         }
@@ -605,7 +612,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to remove tag from session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session tag removal failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to remove tag from session '{}': {}", id, e)).into());
                 }
             }
         }
@@ -630,7 +637,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to delete session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session deletion failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to delete session '{}': {}", id, e)).into());
                 }
             }
         }
@@ -655,7 +662,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to clear session messages: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session clearing failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to clear messages from session '{}': {}", id, e)).into());
                 }
             }
         }
@@ -689,7 +696,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to search sessions: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session search failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to search sessions: {}. Please check the session directory.", e)).into());
                 }
             }
         }
@@ -703,7 +710,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to export session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session export failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to export session '{}': {}. Please check file permissions.", id, e)).into());
                 }
             }
         }
@@ -718,7 +725,7 @@ async fn handle_session_command(action: SessionAction, config: &Config) -> Resul
                 }
                 Err(e) => {
                     ui::print_error(&format!("Failed to import session: {}", e));
-                    return Err(error::CliError::api_error(&format!("Session import failed: {}", e)).into());
+                    return Err(error::CliError::api_error(&format!("Failed to import session from '{}': {}. Please check the file format and permissions.", input, e)).into());
                 }
             }
         }

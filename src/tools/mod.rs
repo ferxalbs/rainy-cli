@@ -23,18 +23,31 @@ pub struct ToolResult {
     pub output: String,
 }
 
-pub async fn execute_tool(tool_call: ToolCall) -> Result<ToolResult> {
+use crate::utils::diff::FileModification;
+
+pub async fn execute_tool(
+    tool_call: ToolCall,
+    file_modifications: &mut Vec<FileModification>,
+) -> Result<ToolResult> {
     match tool_call {
         ToolCall::ReadFile { path } => read_file(&path).await,
-        ToolCall::WriteFile { path, content } => write_file(&path, &content).await,
-        ToolCall::PatchFile { path, instructions } => patch_file(&path, &instructions).await,
+        ToolCall::WriteFile { path, content } => {
+            write_file(&path, &content, file_modifications).await
+        }
+        ToolCall::PatchFile { path, instructions } => {
+            patch_file(&path, &instructions, file_modifications).await
+        }
         ToolCall::DeleteFile { path } => delete_file(&path).await,
         ToolCall::ListFiles { path } => list_files(&path).await,
         ToolCall::Grep { pattern, path } => grep_files(&pattern, path.as_deref()).await,
     }
 }
 
-async fn patch_file(path: &str, instructions: &str) -> Result<ToolResult> {
+async fn patch_file(
+    path: &str,
+    instructions: &str,
+    file_modifications: &mut Vec<FileModification>,
+) -> Result<ToolResult> {
     let original_content = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(e) => {
@@ -64,6 +77,23 @@ async fn patch_file(path: &str, instructions: &str) -> Result<ToolResult> {
             });
         }
     };
+
+    let mut lines_added = 0;
+    let mut lines_removed = 0;
+    for hunk in patch.hunks() {
+        for line in hunk.lines() {
+            match line {
+                diffy::Line::Insert(_) => lines_added += 1,
+                diffy::Line::Delete(_) => lines_removed += 1,
+                _ => {}
+            }
+        }
+    }
+    file_modifications.push(FileModification {
+        path: path.to_string(),
+        lines_added,
+        lines_removed,
+    });
 
     match fs::write(path, patched_content) {
         Ok(_) => Ok(ToolResult {
@@ -124,7 +154,29 @@ async fn read_file(path: &str) -> Result<ToolResult> {
     }
 }
 
-async fn write_file(path: &str, content: &str) -> Result<ToolResult> {
+async fn write_file(
+    path: &str,
+    content: &str,
+    file_modifications: &mut Vec<FileModification>,
+) -> Result<ToolResult> {
+    let original_content = fs::read_to_string(path).unwrap_or_default();
+    let patch = diffy::create_patch(&original_content, content);
+    let mut lines_added = 0;
+    let mut lines_removed = 0;
+    for hunk in patch.hunks() {
+        for line in hunk.lines() {
+            match line {
+                diffy::Line::Insert(_) => lines_added += 1,
+                diffy::Line::Delete(_) => lines_removed += 1,
+                _ => {}
+            }
+        }
+    }
+    file_modifications.push(FileModification {
+        path: path.to_string(),
+        lines_added,
+        lines_removed,
+    });
     match fs::write(path, content) {
         Ok(_) => Ok(ToolResult {
             success: true,
