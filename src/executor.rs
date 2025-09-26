@@ -115,7 +115,14 @@ Response format:
             max_tokens: self.max_tokens,
             presence_penalty: None,
             frequency_penalty: None,
+            logit_bias: None,
+            logprobs: None,
+            top_logprobs: None,
+            n: None,
             user: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
         };
 
         let start_time = std::time::Instant::now();

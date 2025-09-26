@@ -155,10 +155,6 @@ pub fn prompt_input() -> Result<String, std::io::Error> {
 }
 
 
-pub fn print_agent_plan(plan_json: &str) {
-    println!("{}", style("AI Agent has proposed the following plan:").bold().yellow());
-    print_code_block("Execution Plan", plan_json);
-}
 
 pub fn print_agent_plan_conversationally(plan: &Vec<crate::tools::ToolCall>) {
     println!("{}", style("Okay, I will do the following:").green());

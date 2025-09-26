@@ -1,6 +1,109 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+/// Module for Rainy SDK types and functionality
+pub mod rainy_sdk {
+    use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+
+    /// Represents a role in a chat message
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    pub enum MessageRole {
+        /// System message
+        System,
+        /// User message
+        User,
+        /// Assistant message
+        Assistant,
+    }
+
+    /// Represents a chat message
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatMessage {
+        /// The role of the message sender
+        pub role: MessageRole,
+        /// The content of the message
+        pub content: String,
+    }
+
+    /// Request structure for chat completion API
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatCompletionRequest {
+        /// The model to use for completion (e.g., "gpt-3.5-turbo")
+        pub model: String,
+        /// List of messages in the conversation
+        pub messages: Vec<ChatMessage>,
+        /// Optional provider override
+        pub provider: Option<String>,
+        /// Controls randomness in output (0.0 to 2.0)
+        pub temperature: Option<f32>,
+        /// Maximum number of tokens to generate
+        pub max_tokens: Option<u32>,
+        /// Whether to stream the response
+        pub stream: Option<bool>,
+        /// Sequences where the API will stop generating
+        pub stop: Option<Vec<String>>,
+        /// Controls diversity via nucleus sampling (0.0 to 1.0)
+        pub top_p: Option<f32>,
+        /// Penalizes new tokens based on presence in text (-2.0 to 2.0)
+        pub presence_penalty: Option<f32>,
+        /// Penalizes new tokens based on frequency (-2.0 to 2.0)
+        pub frequency_penalty: Option<f32>,
+        /// Number of completions to generate
+        pub n: Option<u32>,
+        /// Modifies likelihood of specified tokens
+        pub logit_bias: Option<HashMap<String, f32>>,
+        /// Whether to return log probabilities
+        pub logprobs: Option<bool>,
+        /// An integer between 0 and 20 specifying the number of most likely tokens to return
+        pub top_logprobs: Option<u32>,
+        /// Unique identifier for the user
+        pub user: Option<String>,
+        /// An object specifying the format that the model must output
+        pub response_format: Option<serde_json::Value>,
+        /// A list of tools the model may call
+        pub tools: Option<Vec<serde_json::Value>>,
+        /// Controls which tool is called by the model
+        pub tool_choice: Option<serde_json::Value>,
+    }
+
+
+    // Placeholder for RainyClient - would need full implementation
+    pub struct RainyClient;
+
+    impl RainyClient {
+        pub fn with_api_key(_api_key: &str) -> Result<Self, String> {
+            // Placeholder implementation
+            Ok(RainyClient)
+        }
+
+        pub async fn create_chat_completion(&self, _request: ChatCompletionRequest) -> Result<ChatCompletionResponse, String> {
+            // Placeholder implementation
+            Err("Not implemented".to_string())
+        }
+    }
+
+    // Placeholder for response types
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatCompletionResponse {
+        pub choices: Vec<ChatCompletionChoice>,
+        pub usage: Option<Usage>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ChatCompletionChoice {
+        pub message: ChatMessage,
+        pub finish_reason: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Usage {
+        pub prompt_tokens: u32,
+        pub completion_tokens: u32,
+        pub total_tokens: u32,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ProjectContext {
     pub project_overview: String,
@@ -89,7 +192,14 @@ Generate a single paragraph summary. Respond ONLY with the summary text, without
             top_p: None,
             presence_penalty: None,
             frequency_penalty: None,
+            logit_bias: None,
+            logprobs: None,
+            top_logprobs: None,
+            n: None,
             user: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
         };
 
         if let Ok(response) = client.create_chat_completion(request).await {

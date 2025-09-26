@@ -72,7 +72,14 @@ Respond ONLY with a valid JSON in this format:
         top_p: None,
         presence_penalty: None,
         frequency_penalty: None,
+        logit_bias: None,
+        logprobs: None,
+        top_logprobs: None,
+        n: None,
         user: None,
+        response_format: None,
+        tools: None,
+        tool_choice: None,
     };
 
     let response = client.create_chat_completion(request).await
