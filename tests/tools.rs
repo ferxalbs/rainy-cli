@@ -1,4 +1,4 @@
-use rainy_cli::{tools::{execute_tool, ToolCall}, utils::diff::FileModification};
+use rainy_cli::tools::{execute_tool, ToolCall};
 use std::fs;
 use tempfile::tempdir;
 
