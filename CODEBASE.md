@@ -178,7 +178,22 @@ rainy-cli/
   - Docker and deployment configurations
 - **Architecture**: Template functions generating project structure and files
 
-#### 10. **Codebase Command** (`commands/codebase.rs`)
+#### 10. **MCP Command** (`commands/mcp.rs`)
+
+- **Purpose**: Model Context Protocol (MCP) server management and tool execution
+- **Key Features**:
+  - **Server Management**: Add, remove, and list MCP servers
+  - **Tool Discovery**: List available tools from connected servers
+  - **Tool Execution**: Execute tools with JSON arguments and permission management
+  - **Permission System**: User confirmation for first-time server usage with AGENTS.md integration
+  - **Multi-Server Support**: Load configurations from Claude Desktop and custom locations
+- **Architecture**: 
+  - `McpArgs` with subcommands for server and tool management
+  - `execute_mcp_tool_call()`: Async tool execution with rmcp library
+  - `list_mcp_tools()`: Tool discovery from MCP servers
+  - Integration with `utils::mcp` for configuration management
+
+#### 11. **Codebase Command** (`commands/codebase.rs`)
 
 - **Purpose**: Rainy.md file management
 - **Key Features**:
@@ -189,7 +204,7 @@ rainy-cli/
 
 ### Tool Framework
 
-#### 11. **Tool Execution** (`tools/mod.rs`)
+#### 12. **Tool Execution** (`tools/mod.rs`)
 
 - **Purpose**: File system operations for AI agent
 - **Key Features**:
@@ -203,7 +218,7 @@ rainy-cli/
 
 ### Utility System
 
-#### 12. **Context Analysis** (`utils/context.rs`)
+#### 13. **Context Analysis** (`utils/context.rs`)
 
 - **Purpose**: Project context extraction and analysis
 - **Key Features**:
@@ -214,7 +229,21 @@ rainy-cli/
   - AI-powered project overview generation
 - **Architecture**: Project struct with analysis functions
 
-#### 13. **Git Integration** (`utils/git.rs`)
+#### 14. **MCP Management** (`utils/mcp.rs`)
+
+- **Purpose**: MCP server configuration management
+- **Key Features**:
+  - **Multi-Source Configuration**: Loads from Claude Desktop, global config, and local .rainy directory
+  - **Server Configuration**: Manages command, arguments, and environment variables for MCP servers
+  - **Configuration Persistence**: Saves to global rainy-cli config directory
+  - **Unified Config Loading**: Merges configurations from multiple sources
+- **Architecture**: 
+  - `McpConfig` and `McpServerConfig` structs for configuration data
+  - `load_mcp_config()`: Multi-source configuration loading
+  - `add_mcp_server()` / `remove_mcp_server()`: Server management functions
+  - Integration with Claude Desktop configuration format
+
+#### 15. **Git Integration** (`utils/git.rs`)
 
 - **Purpose**: Git repository analysis
 - **Key Features**:
@@ -223,7 +252,7 @@ rainy-cli/
   - Diff analysis between references
 - **Architecture**: git2 library integration
 
-#### 14. **History Management** (`utils/history.rs`)
+#### 16. **History Management** (`utils/history.rs`)
 
 - **Purpose**: Chat history persistence
 - **Key Features**:
@@ -232,7 +261,7 @@ rainy-cli/
   - Export/import capabilities
 - **Architecture**: JSON file storage with truncation logic
 
-#### 15. **Rainy.md Management** (`utils/rainy_md.rs`)
+#### 17. **Rainy.md Management** (`utils/rainy_md.rs`)
 
 - **Purpose**: Project instruction file management
 - **Key Features**:
@@ -241,7 +270,7 @@ rainy-cli/
   - Context-aware content generation
 - **Architecture**: File I/O with template generation
 
-#### 16. **Session Management** (`utils/sessions.rs`)
+#### 18. **Session Management** (`utils/sessions.rs`)
 
 - **Purpose**: Chat session persistence and management
 - **Key Features**:
@@ -253,7 +282,7 @@ rainy-cli/
 
 ### UI System
 
-#### 17. **User Interface** (`ui.rs`)
+#### 19. **User Interface** (`ui.rs`)
 
 - **Purpose**: Terminal user interface
 - **Key Features**:
@@ -270,6 +299,12 @@ rainy-cli/
 
 ```text
 User Input → Chat Command → Session Detection → AI Agent → Plan Generation → User Confirmation → Tool Execution → Results Display
+```
+
+### MCP Integration Flow
+
+```text
+MCP Server Registration → Permission Request → Tool Discovery → Tool Execution → Result Processing
 ```
 
 ### Context Loading Flow
@@ -318,13 +353,20 @@ Session Creation → Message Storage → Context Loading → AI Interaction → 
 - User-supervised execution
 - Comprehensive tool set
 
-### 3. **Intelligent Context Management**
+### 4. **Intelligent Context Management**
 
 - Hierarchical rainy.md loading
 - Project context analysis
 - Git integration
 
-### 4. **Token Optimization**
+### 5. **MCP Integration**
+
+- **Multi-Protocol Support**: Compatible with Claude Desktop and custom MCP servers
+- **Permission-Based Security**: User confirmation required for first-time server access
+- **Tool Discovery**: Automatic detection of available tools from connected servers
+- **Seamless Execution**: JSON-based tool calls with comprehensive error handling
+
+### 6. **Token Optimization**
 
 - Truncated history management
 - Context-aware message filtering
@@ -340,11 +382,11 @@ Session Creation → Message Storage → Context Loading → AI Interaction → 
 - **Theme**: Dark
 - **Auto-save**: Enabled
 
-## 📋 **Comprehensive Recommendations** (September 2025)
+## 📋 **Comprehensive Recommendations** (Updated: January 2025)
 
 ### 🚨 **Priority 1: Critical Fixes**
 
-1. **Apply Clippy Fixes**: `cargo clippy --fix --allow-dirty --allow-staged`
+1. ✅ **Apply Clippy Fixes**: Resolved 22 automatic suggestions, reduced warnings from 63 to 7
 2. **Remove Duplicate SDK**: Delete custom `rainy_sdk` module from `context.rs`
 3. **Clean Unused Imports**: Remove commented imports in `utils/mod.rs`
 4. **Dependency Audit**: Monitor `rmcp` crate for `paste` replacement
@@ -355,6 +397,7 @@ Session Creation → Message Storage → Context Loading → AI Interaction → 
 2. **Enhanced Error Recovery**: Add retry mechanisms for API failures
 3. **Input Validation**: Strengthen sanitization for file paths and user inputs
 4. **Memory Optimization**: Implement streaming for large file contexts
+5. **MCP Error Handling**: Improve error messages for MCP server connection failures
 
 ### 🛡️ **Priority 3: Security Enhancements**
 
@@ -362,6 +405,7 @@ Session Creation → Message Storage → Context Loading → AI Interaction → 
 2. **File Access Controls**: Add sandboxing for tool file operations
 3. **Rate Limiting**: Implement API call throttling
 4. **Audit Logging**: Add comprehensive operation logging
+5. **MCP Permission Validation**: Enhance permission system with granular controls
 
 ### 📈 **Priority 4: Performance & Scalability**
 
@@ -387,7 +431,7 @@ Session Creation → Message Storage → Context Loading → AI Interaction → 
 
 ---
 
-**Last Updated**: September 2025 | **Review Status**: ✅ Complete | **Next Review**: February 2026
+**Last Updated**: January 2025 | **Review Status**: ✅ Complete | **Next Review**: April 2025
 
 - **Temperature**: 0.7
 - **Theme**: dark
