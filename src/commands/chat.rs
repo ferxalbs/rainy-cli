@@ -83,7 +83,7 @@ Respond ONLY with a valid JSON in this format:
     };
 
     let response = client.create_chat_completion(request).await
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to generate session info from AI: {}. Please check your network connection and API provider status.", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(format!("Failed to generate session info from AI: {}. Please check your network connection and API provider status.", e)))?;
 
     if let Some(choice) = response.choices.first() {
         let content = choice.message.content.trim();
@@ -156,7 +156,7 @@ pub async fn handle_chat_command(
             .items(levels)
             .default(0)
             .interact()
-            .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read selection for trust level: {}", e)))?;
+            .map_err(|e| crate::error::CliError::command_error(format!("Failed to read selection for trust level: {}", e)))?;
 
         let chosen_level = match selection {
             0 => "low",
@@ -178,18 +178,18 @@ pub async fn handle_chat_command(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
 
     // Detectar si necesitamos crear una sesión automáticamente
     let session_manager = SessionManager::new()
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize session manager: {}. Please check permissions of the session directory.", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(format!("Failed to initialize session manager: {}. Please check permissions of the session directory.", e)))?;
 
     let (use_session, session_id) = if let Some(initial_msg) = &message {
         // If there is an initial message, create a session automatically
         ui::print_info("🎯 Creating automatic session for your query...");
 
         // Generate title and description using Llama-3.1-8b-instant
-        let (title, description) = generate_session_title_and_description(initial_msg, &api_key, &config.title_model)
+        let (title, description) = generate_session_title_and_description(initial_msg, api_key, &config.title_model)
             .await
             .unwrap_or_else(|_| {
                 // Fallback if automatic generation fails
@@ -204,7 +204,7 @@ pub async fn handle_chat_command(
 
         // Create the session
         let session = session_manager.create_session(title.clone(), Some(description.clone()))
-            .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create session: {}. Please check permissions of the session directory.", e)))?;
+            .map_err(|e| crate::error::CliError::api_error(format!("Failed to create session: {}. Please check permissions of the session directory.", e)))?;
 
         // Show information about the created session
         ui::print_success(&format!("✅ Session created: \"{}\"", title));
@@ -223,7 +223,7 @@ pub async fn handle_chat_command(
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
 
     let mut messages = Vec::new();
 
@@ -327,7 +327,7 @@ async fn run_agentic_loop(
 
     loop {
         // If the last message was from the assistant, get user input
-        if messages.last().map_or(true, |m| m.role == "assistant") {
+        if messages.last().is_none_or(|m| m.role == "assistant") {
             let mut input = ui::prompt_input()
                 .map_err(|e| crate::error::CliError::file_error("Failed to read user input. Please check terminal permissions.", e))?;
 
@@ -347,7 +347,7 @@ async fn run_agentic_loop(
 
         let pb = ui::print_progress("Rainy AI is working...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            crate::error::CliError::api_error(&format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
+            crate::error::CliError::api_error(format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
         })?;
         pb.finish_and_clear();
 
@@ -389,7 +389,7 @@ async fn run_agentic_loop(
                         ui::print_info(&tool_call_to_running_string(tool_call));
                         let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
                             .await
-                            .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
+                            .map_err(|e| crate::error::CliError::api_error(e.to_string()))?;
                         results.push(result);
                     }
 
@@ -490,7 +490,7 @@ async fn handle_at_command(input: &str) -> Result<String> {
     if selection > 0 && selection <= found_files.len() {
         let selected_path = &found_files[selection - 1];
         let content = std::fs::read_to_string(selected_path)
-            .map_err(|e| crate::error::CliError::file_error(&format!("Failed to read selected file: {}", selected_path.display()), e))?;
+            .map_err(|e| crate::error::CliError::file_error(format!("Failed to read selected file: {}", selected_path.display()), e))?;
         let new_input = format!(
             "Using file `{}` as context.\n\n---\n\n{}\n\n---\n\n{}",
             selected_path.display(),
@@ -516,14 +516,14 @@ pub async fn handle_chat_with_session(
 
     let api_key = config
         .get_api_key()
-        .map_err(|e| crate::error::CliError::config_error(&format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
+        .map_err(|e| crate::error::CliError::config_error(format!("API key not configured. Please run `rainy-cli config --set-api-key YOUR_API_KEY`. Error: {}", e)))?;
 
     let agent = executor::AgenticExecutor::new(
         api_key.to_string(),
         Some(config.get_model().to_string()),
     )
     .await
-    .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
+    .map_err(|e| crate::error::CliError::api_error(format!("Failed to initialize AI agent: {}. This could be due to an invalid API key or network issues.", e)))?;
 
     let mut messages = Vec::new();
 
@@ -598,7 +598,7 @@ async fn execute_test_commands(
                         .arg("-c")
                         .arg(command)
                         .output()
-                        .map_err(|e| crate::error::CliError::command_error(&format!("Failed to execute test command: `{}`. Error: {}", command, e)))?;
+                        .map_err(|e| crate::error::CliError::command_error(format!("Failed to execute test command: `{}`. Error: {}", command, e)))?;
                     results.push_str(&format!("--- Output of '{}' ---\n", command));
                     results.push_str(&String::from_utf8_lossy(&output.stdout));
                     results.push_str(&String::from_utf8_lossy(&output.stderr));
@@ -624,7 +624,7 @@ async fn run_session_chat_loop(
 
     loop {
         // If the last message was from the assistant, get user input
-        if messages.last().map_or(true, |m| m.role == "assistant") {
+        if messages.last().is_none_or(|m| m.role == "assistant") {
             let mut input = ui::prompt_input()
                 .map_err(|e| crate::error::CliError::file_error("Failed to read user input. Please check terminal permissions.", e))?;
 
@@ -645,7 +645,7 @@ async fn run_session_chat_loop(
 
         let pb = ui::print_progress("Rainy AI is working...");
         let (response, duration) = agent.chat(messages.clone()).await.map_err(|e| {
-            crate::error::CliError::api_error(&format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
+            crate::error::CliError::api_error(format!("Failed to get AI response: {}. Please check your network connection and API provider status.", e))
         })?;
         pb.finish_and_clear();
 
@@ -686,7 +686,7 @@ async fn run_session_chat_loop(
                         ui::print_info(&tool_call_to_running_string(tool_call));
                         let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
                             .await
-                            .map_err(|e| crate::error::CliError::api_error(&e.to_string()))?;
+                            .map_err(|e| crate::error::CliError::api_error(e.to_string()))?;
                         results.push(result);
                     }
 

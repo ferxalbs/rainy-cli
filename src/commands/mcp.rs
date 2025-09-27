@@ -142,9 +142,9 @@ pub async fn handle_mcp_command(args: McpArgs, _config: &Config) -> Result<()> {
             if !agents_md.mcp_permissions.contains(&server_name) {
                 ui::print_info(&format!("First time using MCP server '{}'. Please grant permission.", server_name));
                 let confirmation = dialoguer::Confirm::new()
-                    .with_prompt(&format!("Do you want to allow Rainy CLI to use tools from the MCP server '{}'?", server_name))
+                    .with_prompt(format!("Do you want to allow Rainy CLI to use tools from the MCP server '{}'?", server_name))
                     .interact()
-                    .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read confirmation: {}", e)))?;
+                    .map_err(|e| crate::error::CliError::command_error(format!("Failed to read confirmation: {}", e)))?;
 
                 if confirmation {
                     let mut new_content = agents_md_content;

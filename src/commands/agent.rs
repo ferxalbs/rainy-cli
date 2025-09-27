@@ -55,7 +55,7 @@ pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()
             let content = utils::agents_md::generate_agents_md_content(&context);
 
             fs::write(path, content)
-                .map_err(|e| crate::error::CliError::file_error(&format!("Failed to create {}: {}. Please check file permissions.", AGENTS_MD_FILENAME, e), e))?;
+                .map_err(|e| crate::error::CliError::file_error(format!("Failed to create {}: {}. Please check file permissions.", AGENTS_MD_FILENAME, e), e))?;
 
             ui::print_success(&format!(
                 "{} Created `{}` with auto-detected project context. You can edit this file to provide project-specific instructions.",
@@ -66,37 +66,37 @@ pub async fn handle_agent_command(args: AgentArgs, config: &Config) -> Result<()
         AgentCommand::ReadFile { path } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::ReadFile { path: path.clone() }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to read file '{}': {}", path, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to read file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::WriteFile { path, content } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::WriteFile { path: path.clone(), content }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to write to file '{}': {}", path, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to write to file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::PatchFile { path, instructions } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::PatchFile { path: path.clone(), instructions }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to patch file '{}': {}", path, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to patch file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::DeleteFile { path } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::DeleteFile { path: path.clone() }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to delete file '{}': {}", path, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to delete file '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::ListFiles { path } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::ListFiles { path: path.clone() }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to list files in '{}': {}", path, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to list files in '{}': {}", path, e)))?;
             println!("{}", result.output);
         }
         AgentCommand::Grep { pattern, path } => {
             let mut file_modifications = Vec::new();
             let result = tools::execute_tool(tools::ToolCall::Grep { pattern: pattern.clone(), path }, &mut file_modifications).await
-                .map_err(|e| crate::error::CliError::command_error(&format!("Failed to grep files for pattern '{}': {}", pattern, e)))?;
+                .map_err(|e| crate::error::CliError::command_error(format!("Failed to grep files for pattern '{}': {}", pattern, e)))?;
             println!("{}", result.output);
         }
     }

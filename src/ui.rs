@@ -140,7 +140,7 @@ pub fn print_ai_message(message: &str) {
 
 pub fn print_generation_header(description: &str) {
     println!();
-    println!("{}", style(format!("┌─ Code Generation ────────────────────────────────────────────────────────────┐")).yellow());
+    println!("{}", style("┌─ Code Generation ────────────────────────────────────────────────────────────┐".to_string()).yellow());
     println!("{}", style(format!("│ {} {}{}│", CODE, description, " ".repeat(50 - description.len().min(50)))).yellow());
     println!("{}", style("└─────────────────────────────────────────────────────────────────────────────┘").yellow());
 }

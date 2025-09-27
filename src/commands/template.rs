@@ -16,7 +16,7 @@ pub async fn handle_template_command(
     let pb = ui::print_progress("Generating project structure...");
     generate_template(&template, &name, &output_dir)
         .await
-        .map_err(|e| CliError::command_error(&format!("Failed to generate template: {}", e)))?;
+        .map_err(|e| CliError::command_error(format!("Failed to generate template: {}", e)))?;
     pb.finish_with_message("Project structure created");
 
 

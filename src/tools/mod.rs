@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use diffy;
 use std::path::Path;
 
 use walkdir::WalkDir;
@@ -214,12 +213,10 @@ async fn list_files(path: &str) -> Result<ToolResult> {
     match fs::read_dir(path) {
         Ok(entries) => {
             let mut file_list = String::new();
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let file_name = entry.file_name().to_string_lossy().to_string();
-                    let file_type = if entry.path().is_dir() { "[D]" } else { "[F]" };
-                    file_list.push_str(&format!("{} {}\n", file_type, file_name));
-                }
+            for entry in entries.flatten() {
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                let file_type = if entry.path().is_dir() { "[D]" } else { "[F]" };
+                file_list.push_str(&format!("{} {}\n", file_type, file_name));
             }
             Ok(ToolResult {
                 success: true,

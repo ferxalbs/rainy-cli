@@ -129,7 +129,7 @@ Response format:
         let response = self.client.create_chat_completion(request).await?;
         let duration = start_time.elapsed();
 
-        if response.choices.first().is_some() {
+        if !response.choices.is_empty() {
             Ok((response, duration))
         } else {
             Err(anyhow!("No response from AI"))
