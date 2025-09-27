@@ -375,9 +375,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Inspired by [Cursor CLI](https://cursor.com/cli)
 - Built with [Rainy SDK](https://docs.rs/rainy-sdk/latest/rainy_sdk/)
-- Powered by Enosis Labs AI models
+- Powered by Rainy API
 
 ---
 

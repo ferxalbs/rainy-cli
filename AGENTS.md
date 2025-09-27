@@ -90,3 +90,7 @@ MCP-Permission: weather
   }
 ]
 ```
+
+MCP-Permission: filesystem
+
+MCP-Permission: echo

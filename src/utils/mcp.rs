@@ -54,14 +54,8 @@ pub fn load_mcp_config() -> Result<McpConfig, anyhow::Error> {
         }
     }
 
-    // Load rainy-mcp.json from current project dir (overrides everything else)
-    let local_rainy_path = PathBuf::from("rainy-mcp.json");
-    if local_rainy_path.exists() {
-        let content = fs::read_to_string(local_rainy_path)?;
-        if let Ok(rainy_config) = serde_json::from_str::<McpConfig>(&content) {
-            merged_config.mcp_servers.extend(rainy_config.mcp_servers);
-        }
-    }
+    // Note: Removed loading from current project directory (rainy-mcp.json)
+    // The configuration should only be managed from the global config directory
 
     Ok(merged_config)
 }
