@@ -21,6 +21,7 @@
 ### Chat Interactivo
 
 #### Chat Tradicional
+
 ```bash
 # Chat simple (historial global)
 rainy-cli chat
@@ -55,6 +56,7 @@ rainy-cli chat "¿Cómo optimizar esta consulta SQL?"
 ```
 
 **¿Qué hace automáticamente?**
+
 - 🤖 **Genera título inteligente** usando el modelo predeterminado
 - 📝 **Crea descripción automática** basada en tu consulta
 - 💾 **Guarda toda la conversación** en la sesión
@@ -396,6 +398,7 @@ rainy-cli chat --context-file archivo.rs "analiza solo esto"
 ### Workflow Recomendado
 
 #### Para Proyectos Grandes (Sesiones Manuales)
+
 ```bash
 # 1. Crear sesión al inicio del proyecto
 rainy-cli session create "Mi Nuevo Proyecto"
@@ -416,6 +419,7 @@ rainy-cli session search "api"  # Encontrar sesiones relacionadas
 ```
 
 #### Para Consultas Espontáneas (Sesiones Automáticas) 🆕
+
 ```bash
 # ✨ Sesiones automáticas para cualquier consulta
 rainy-cli chat "optimiza esta función de fibonacci"
@@ -492,6 +496,7 @@ rainy-cli session delete <id_deprecated>
 **La innovación más poderosa**: creación inteligente de sesiones sin intervención manual
 
 **¿Por qué es revolucionario?**
+
 - 🤖 **IA genera títulos** automáticamente usando Llama-3.1-8b-instant
 - 🎯 **Contexto organizado** desde el primer mensaje
 - 💾 **Historial preservado** automáticamente
@@ -499,6 +504,7 @@ rainy-cli session delete <id_deprecated>
 - ⚡ **Cero configuración** para el usuario
 
 **Ejemplo de experiencia:**
+
 ```bash
 # Antes (manual y tedioso)
 rainy-cli session create "componente acordeon react"
@@ -528,6 +534,7 @@ rainy-cli chat "Crea un componente React de acordeón usando shadcn/ui"
 ### Verificar Uso de Tokens
 
 Los comandos muestran automáticamente:
+
 ```
 TOK Tokens: [Prompt: 1234, Completion: 567, Total: 1801]
 Model: moonshotai/kimi-k2-instruct-0905
@@ -557,6 +564,7 @@ Speed: 2.5s
 **Rainy CLI ha evolucionado** con la funcionalidad más inteligente del mercado:
 
 #### Para TODOS los Usuarios (Principiantes y Avanzados)
+
 ```bash
 # ✨ La forma más simple y poderosa
 rainy-cli chat "tu pregunta o tarea"
@@ -576,6 +584,7 @@ rainy-cli chat "tu pregunta o tarea"
 ### Estrategias de Uso
 
 #### 🚀 Para Consultas Rápidas
+
 ```bash
 rainy-cli chat "¿Cómo funciona async en Rust?"
 rainy-cli chat "optimiza esta función SQL"
@@ -583,6 +592,7 @@ rainy-cli chat "optimiza esta función SQL"
 ```
 
 #### 🏗️ Para Desarrollo de Proyectos
+
 ```bash
 # Sesiones manuales para proyectos grandes
 rainy-cli session create "E-commerce API"
@@ -594,6 +604,7 @@ rainy-cli chat "implementa sistema de pagos"
 ```
 
 #### 🎯 Para Trabajo Colaborativo
+
 ```bash
 # Exportar sesiones para compartir
 rainy-cli session export <id> proyecto_compartido.json
@@ -603,6 +614,7 @@ rainy-cli session import proyecto_equipo.json
 ```
 
 ### Eficiencia Máxima
+
 - **Sesiones automáticas** para consultas espontáneas
 - **Sesiones manuales** para proyectos organizados
 - **`--no-history`** para preguntas simples sin contexto
@@ -611,6 +623,7 @@ rainy-cli session import proyecto_equipo.json
 - **60% menos tokens** con sesiones inteligentes
 
 ### 💡 Pro Tip
+
 **Empieza con sesiones automáticas** para todo. Si necesitas más organización, crea sesiones manuales adicionales. ¡La IA hace el trabajo pesado por ti! 🤖✨
 
 ---
@@ -618,4 +631,3 @@ rainy-cli session import proyecto_equipo.json
 ¡Listo para dominar tu flujo de desarrollo con Rainy CLI! 🚀
 
 Para más información, usa `rainy-cli --help` o consulta la documentación en cada comando específico.
-

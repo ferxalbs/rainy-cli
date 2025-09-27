@@ -60,3 +60,33 @@ cargo test
 - Keep components small and focused.
 
 Trust-Level: high
+
+MCP-Permission: weather
+
+## Agent Activity
+
+**2025-09-26 22:22:30**
+
+```json
+[
+  {
+    "tool": "read_file",
+    "parameters": {
+      "path": "test.rs"
+    }
+  }
+]
+```
+
+**2025-09-26 22:22:29**
+
+```json
+[
+  {
+    "tool": "list_files",
+    "parameters": {
+      "path": "."
+    }
+  }
+]
+```

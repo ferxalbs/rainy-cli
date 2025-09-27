@@ -9,6 +9,7 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 ## ✨ Features
 
 ### 🔍 **Code Analysis**
+
 - **Security Analysis**: Detect vulnerabilities, injection flaws, and security weaknesses
 - **Performance Analysis**: Identify bottlenecks and optimization opportunities
 - **Style Analysis**: Check code style and maintainability
@@ -16,18 +17,21 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 - **General Analysis**: Comprehensive code review and quality assessment
 
 ### 💻 **Code Generation**
+
 - **Natural Language to Code**: Generate code from descriptions
 - **Unit Test Generation**: Automatically create comprehensive test suites
 - **Documentation Generation**: Add inline documentation and comments
 - **Project Templates**: Bootstrap new projects with best practices
 
 ### 📝 **Code Review**
+
 - **File Review**: Detailed analysis of individual files
 - **Git-Aware Review**: Review only changed files in commits
 - **Interactive Suggestions**: Apply improvements with guided assistance
 - **Quality Scoring**: Get overall quality grades (A+ to C)
 
 ### 💬 **Interactive AI Agent**
+
 - **Context-Aware**: Understands your project via `AGENTS.md`.
 - **Agentic Workflow**: Proposes and executes plans to modify your codebase.
 - **Command Execution**: Can run tests and other commands defined in `AGENTS.md`.
@@ -35,6 +39,7 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 - **Conversation History**: Persistent chat sessions.
 
 ### 🏗️ **Project Templates**
+
 - **rust-api**: Modern REST API with Axum, database integration
 - **rust-cli**: Feature-rich CLI with clap and colored output
 - **rust-lib**: Library template with comprehensive documentation
@@ -42,6 +47,7 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 - **microservice**: Docker-ready microservice with health checks
 
 ### ⚙️ **Configuration Management**
+
 - **API Key Storage**: Secure credential management
 - **Model Selection**: Choose from multiple AI models
 - **Custom Settings**: Temperature, max tokens, themes
@@ -246,9 +252,58 @@ The CLI uses the official [Rainy SDK](https://docs.rs/rainy-sdk/latest/rainy_sdk
 ### Editor Integration
 
 Works seamlessly with any text editor or IDE:
+
 - Generate code and save to files
 - Review existing codebases
 - Apply suggestions interactively
+
+### MCP Integration
+
+Rainy CLI can connect to Model Context Protocol (MCP) servers to extend its functionality with external tools.
+
+**Adding an MCP Server:**
+
+```bash
+rainy-cli mcp add <server-name> <command> [args...]
+```
+
+- `<server-name>`: A unique name for the server.
+- `<command>`: The command to start the server.
+- `[args...]`: Optional arguments for the command.
+
+**Example:**
+
+```bash
+rainy-cli mcp add my-server npx @modelcontextprotocol/server-everything
+```
+
+**Listing MCP Servers:**
+
+```bash
+rainy-cli mcp list
+```
+
+**Removing an MCP Server:**
+
+```bash
+rainy-cli mcp remove <server-name>
+```
+
+**Calling a Tool:**
+
+```bash
+rainy-cli mcp call-tool <server-name> <tool-name> [args]
+```
+
+- `<server-name>`: The name of the MCP server to use.
+- `<tool-name>`: The name of the tool to call.
+- `[args]`: Optional arguments for the tool in JSON format.
+
+**Example:**
+
+```bash
+rainy-cli mcp call-tool my-server echo '{"message": "hello"}'
+```
 
 ## 🚀 Advanced Features
 

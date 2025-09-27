@@ -29,7 +29,7 @@ chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.5.0"
 diffy = "0.4.2"
 regex = "1.10.2"
-rmcp = "0.6.4"
+rmcp = { version = "0.6.4", features = ["transport-child-process", "client"] }
 
 [dev-dependencies]
 tempfile = "3.3"
