@@ -173,7 +173,7 @@ pub fn print_agent_plan_conversationally(plan: &Vec<crate::tools::ToolCall>) {
 }
 
 pub fn prompt_for_confirmation() -> Result<bool, std::io::Error> {
-    print!("{} {}", style("Do you want to execute this plan? (y/n)").bold().yellow(), "> ");
+    print!("{} > ", style("Do you want to execute this plan? (y/n)").bold().yellow());
     io::stdout().flush()?;
 
     let mut input = String::new();

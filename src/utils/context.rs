@@ -238,7 +238,9 @@ fn get_file_list(path: &Path) -> Result<Vec<String>> {
     Ok(files)
 }
 
-fn analyze_files(files: &[String]) -> Result<(Vec<String>, Vec<String>, Vec<String>, Vec<String>)> {
+type AnalysisResult = (Vec<String>, Vec<String>, Vec<String>, Vec<String>);
+
+fn analyze_files(files: &[String]) -> Result<AnalysisResult> {
     let mut tech_stack = HashSet::new();
     let mut build_commands = Vec::new();
     let mut run_commands = Vec::new();

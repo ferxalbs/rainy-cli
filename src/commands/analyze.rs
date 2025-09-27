@@ -39,7 +39,7 @@ pub async fn handle_analyze_command(
             Some(config.get_model().to_string()),
         )
         .await
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to initialize AI agent: {}", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(format!("Failed to initialize AI agent: {}", e)))?;
 
         let messages = vec![executor::ChatMessage {
             role: "user".to_string(),
@@ -47,7 +47,7 @@ pub async fn handle_analyze_command(
         }];
 
         let (response, _duration) = agent.chat(messages).await.map_err(|e| {
-            crate::error::CliError::api_error(&format!("Failed to get AI response: {}", e))
+            crate::error::CliError::api_error(format!("Failed to get AI response: {}", e))
         })?;
 
         let response_content = response

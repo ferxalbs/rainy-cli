@@ -41,7 +41,7 @@ async fn generate_session_title_and_description(
     model: &str,
 ) -> Result<(String, String)> {
     let client = rainy_sdk::RainyClient::with_api_key(api_key)
-        .map_err(|e| crate::error::CliError::api_error(&format!("Failed to create API client: {}. This might be due to an invalid API key format.", e)))?;
+        .map_err(|e| crate::error::CliError::api_error(format!("Failed to create API client: {}. This might be due to an invalid API key format.", e)))?;
 
     let prompt = format!(
         r#"Analyze the following user message and generate:

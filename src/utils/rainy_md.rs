@@ -99,7 +99,7 @@ pub fn generate_rainy_md_content(context: &ProjectContext) -> String {
         for tech in &context.tech_stack {
             content.push_str(&format!("- {}\n", tech));
         }
-        content.push_str("\n");
+        content.push('\n');
     }
 
     if !context.project_structure.is_empty() {
@@ -133,7 +133,7 @@ pub fn generate_rainy_md_content(context: &ProjectContext) -> String {
         for file in &context.key_files {
             content.push_str(&format!("- `{}`\n", file));
         }
-        content.push_str("\n");
+        content.push('\n');
     }
 
     content.push_str("## 📜 Rules & Conventions\n\n");
