@@ -1,6 +1,6 @@
 use crate::{config::Config, error::CliError, ui};
 use miette::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub async fn handle_template_command(
     template: String,
@@ -44,7 +44,7 @@ pub async fn generate_template(template: &str, name: &str, output_dir: &PathBuf)
     }
 }
 
-async fn generate_rust_api_template(name: &str, output_dir: &PathBuf) -> anyhow::Result<()> {
+async fn generate_rust_api_template(name: &str, output_dir: &Path) -> anyhow::Result<()> {
     // Create src directory
     let src_dir = output_dir.join("src");
     tokio::fs::create_dir_all(&src_dir).await?;
@@ -215,7 +215,7 @@ cargo run
     Ok(())
 }
 
-async fn generate_rust_cli_template(name: &str, output_dir: &PathBuf) -> anyhow::Result<()> {
+async fn generate_rust_cli_template(name: &str, output_dir: &Path) -> anyhow::Result<()> {
     // Create src directory
     let src_dir = output_dir.join("src");
     tokio::fs::create_dir_all(&src_dir).await?;
@@ -333,7 +333,7 @@ cargo run -- --help
     Ok(())
 }
 
-async fn generate_rust_lib_template(name: &str, output_dir: &PathBuf) -> anyhow::Result<()> {
+async fn generate_rust_lib_template(name: &str, output_dir: &Path) -> anyhow::Result<()> {
     // Create src directory
     let src_dir = output_dir.join("src");
     tokio::fs::create_dir_all(&src_dir).await?;
@@ -483,7 +483,7 @@ cargo doc --open
     Ok(())
 }
 
-async fn generate_web_api_template(name: &str, output_dir: &PathBuf) -> anyhow::Result<()> {
+async fn generate_web_api_template(name: &str, output_dir: &Path) -> anyhow::Result<()> {
     // Enhanced web API template with database integration
     let src_dir = output_dir.join("src");
     tokio::fs::create_dir_all(&src_dir).await?;
@@ -571,7 +571,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn generate_microservice_template(name: &str, output_dir: &PathBuf) -> anyhow::Result<()> {
+async fn generate_microservice_template(name: &str, output_dir: &Path) -> anyhow::Result<()> {
     // Create a complete microservice template
     let src_dir = output_dir.join("src");
     tokio::fs::create_dir_all(&src_dir).await?;

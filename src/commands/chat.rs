@@ -572,7 +572,7 @@ pub async fn handle_chat_with_session(
 }
 
 async fn execute_test_commands(
-    plan: &Vec<tools::ToolCall>,
+    plan: &[tools::ToolCall],
     agents_md: &utils::agents_md::AgentsMd,
 ) -> Result<String> {
     let mut results = String::new();

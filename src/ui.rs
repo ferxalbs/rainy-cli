@@ -156,7 +156,7 @@ pub fn prompt_input() -> Result<String, std::io::Error> {
 
 
 
-pub fn print_agent_plan_conversationally(plan: &Vec<crate::tools::ToolCall>) {
+pub fn print_agent_plan_conversationally(plan: &[crate::tools::ToolCall]) {
     println!("{}", style("Okay, I will do the following:").green());
     for (i, tool_call) in plan.iter().enumerate() {
         let message = match tool_call {
