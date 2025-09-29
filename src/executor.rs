@@ -48,6 +48,36 @@ impl AgenticExecutor {
         "parameters": {
             "path": "The path to the directory to list."
         }
+    },
+    {
+        "tool": "execute_command",
+        "description": "Executes a shell command with security validation and user approval when needed.",
+        "parameters": {
+            "command": "The shell command to execute.",
+            "security_level": "Optional security level: 'low' (always ask), 'medium' (ask for sensitive), 'high' (never ask). Defaults to 'medium'."
+        }
+    },
+    {
+        "tool": "install_package",
+        "description": "Installs a package using the system's package manager (npm, cargo, pip, apt, etc.).",
+        "parameters": {
+            "package_name": "The name of the package to install."
+        }
+    },
+    {
+        "tool": "run_tests",
+        "description": "Runs the project's test suite using the detected test framework.",
+        "parameters": {}
+    },
+    {
+        "tool": "build_project",
+        "description": "Builds the project using the detected build system.",
+        "parameters": {}
+    },
+    {
+        "tool": "get_system_info",
+        "description": "Retrieves system information including OS, CPU, and memory details.",
+        "parameters": {}
     }
 ]
 "#;

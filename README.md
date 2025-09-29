@@ -23,6 +23,14 @@ A premium AI-powered code assistant built with Rust that helps developers analyz
 - **Documentation Generation**: Add inline documentation and comments
 - **Project Templates**: Bootstrap new projects with best practices
 
+### 🔧 **Shell Command Execution**
+
+- **Secure Command Execution**: Run shell commands with configurable security levels
+- **Package Management**: Install packages across different package managers (npm, pip, cargo, etc.)
+- **Build & Test Operations**: Execute project builds and test suites
+- **System Information**: Gather system and environment details
+- **Command Validation**: Built-in security checks and dangerous pattern detection
+
 ### 📝 **Code Review**
 
 - **File Review**: Detailed analysis of individual files
@@ -155,6 +163,29 @@ rainy-cli chat --context-file src/main.rs "How can I improve this?"
 # exit
 ```
 
+### Shell Command Execution
+
+The AI agent can execute shell commands securely with built-in validation:
+
+```bash
+# Execute commands through the agent
+rainy-cli agent "Run the tests and show me the results"
+rainy-cli agent "Install the missing dependencies"
+rainy-cli agent "Build the project and check for errors"
+
+# Security levels:
+# - Low: Always requires user approval
+# - Medium: Requires approval for risky operations (default)
+# - High: Executes safe commands automatically
+
+# Supported operations:
+# - Package installation (npm, pip, cargo, apt, etc.)
+# - Build commands (cargo build, npm run build, etc.)
+# - Test execution (cargo test, npm test, pytest, etc.)
+# - System information gathering
+# - File operations with safety checks
+```
+
 ## 🏗️ Architecture
 
 The CLI is designed with modularity and maintainability in mind:
@@ -170,6 +201,9 @@ src/
 │   ├── generate.rs   # Code generation
 │   ├── review.rs     # Code review
 │   └── template.rs   # Project templates
+├── shell.rs          # Secure shell command execution
+├── tools/            # Tool implementations for AI agent
+│   └── mod.rs        # File operations and shell commands
 ├── utils/            # Utility modules
 │   ├── mod.rs
 │   ├── agents_md.rs  # AGENTS.md parsing and generation

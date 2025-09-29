@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use walkdir::WalkDir;
+use crate::shell::{ShellExecutor, ShellConfig, SecurityLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "tool", content = "parameters", rename_all = "snake_case")]
@@ -14,6 +15,11 @@ pub enum ToolCall {
     DeleteFile { path: String },
     ListFiles { path: String },
     Grep { pattern: String, path: Option<String> },
+    ExecuteCommand { command: String, security_level: Option<String> },
+    InstallPackage { package_name: String },
+    RunTests,
+    BuildProject,
+    GetSystemInfo,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,6 +45,15 @@ pub async fn execute_tool(
         ToolCall::DeleteFile { path } => delete_file(&path).await,
         ToolCall::ListFiles { path } => list_files(&path).await,
         ToolCall::Grep { pattern, path } => grep_files(&pattern, path.as_deref()).await,
+        ToolCall::ExecuteCommand { command, security_level } => {
+            execute_shell_command(&command, security_level.as_deref()).await
+        }
+        ToolCall::InstallPackage { package_name } => {
+            install_package(&package_name).await
+        }
+        ToolCall::RunTests => run_tests().await,
+        ToolCall::BuildProject => build_project().await,
+        ToolCall::GetSystemInfo => get_system_info().await,
     }
 }
 
@@ -226,6 +241,156 @@ async fn list_files(path: &str) -> Result<ToolResult> {
         Err(e) => Ok(ToolResult {
             success: false,
             output: format!("Failed to list files in '{}': {}", path.display(), e),
+        }),
+    }
+}
+
+// Shell command execution functions
+
+async fn execute_shell_command(command: &str, security_level: Option<&str>) -> Result<ToolResult> {
+    let security_level = security_level
+        .map(|s| SecurityLevel::from_str(s))
+        .unwrap_or(SecurityLevel::Medium);
+    
+    let config = ShellConfig {
+        security_level,
+        ..Default::default()
+    };
+    
+    let executor = ShellExecutor::new(config);
+    
+    match executor.execute(command).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!(
+                "Command: {}\nExit Code: {}\nDuration: {:?}\n\nSTDOUT:\n{}\n\nSTDERR:\n{}",
+                result.command,
+                result.exit_code,
+                result.duration,
+                result.stdout,
+                result.stderr
+            ),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: format!("Failed to execute command '{}': {}", command, e),
+        }),
+    }
+}
+
+async fn install_package(package_name: &str) -> Result<ToolResult> {
+    let config = ShellConfig {
+        security_level: SecurityLevel::Medium,
+        ..Default::default()
+    };
+    
+    let executor = ShellExecutor::new(config);
+    
+    match executor.install_package(package_name).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!(
+                "Package Installation: {}\nExit Code: {}\nDuration: {:?}\n\nOutput:\n{}{}",
+                package_name,
+                result.exit_code,
+                result.duration,
+                result.stdout,
+                if !result.stderr.is_empty() {
+                    format!("\n\nErrors:\n{}", result.stderr)
+                } else {
+                    String::new()
+                }
+            ),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: format!("Failed to install package '{}': {}", package_name, e),
+        }),
+    }
+}
+
+async fn run_tests() -> Result<ToolResult> {
+    let config = ShellConfig {
+        security_level: SecurityLevel::High, // Tests are generally safe
+        ..Default::default()
+    };
+    
+    let executor = ShellExecutor::new(config);
+    
+    match executor.run_tests().await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!(
+                "Test Execution\nExit Code: {}\nDuration: {:?}\n\nOutput:\n{}{}",
+                result.exit_code,
+                result.duration,
+                result.stdout,
+                if !result.stderr.is_empty() {
+                    format!("\n\nErrors:\n{}", result.stderr)
+                } else {
+                    String::new()
+                }
+            ),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: format!("Failed to run tests: {}", e),
+        }),
+    }
+}
+
+async fn build_project() -> Result<ToolResult> {
+    let config = ShellConfig {
+        security_level: SecurityLevel::High, // Building is generally safe
+        ..Default::default()
+    };
+    
+    let executor = ShellExecutor::new(config);
+    
+    match executor.build_project().await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!(
+                "Build Execution\nExit Code: {}\nDuration: {:?}\n\nOutput:\n{}{}",
+                result.exit_code,
+                result.duration,
+                result.stdout,
+                if !result.stderr.is_empty() {
+                    format!("\n\nErrors:\n{}", result.stderr)
+                } else {
+                    String::new()
+                }
+            ),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: format!("Failed to build project: {}", e),
+        }),
+    }
+}
+
+async fn get_system_info() -> Result<ToolResult> {
+    let config = ShellConfig {
+        security_level: SecurityLevel::High, // System info is safe
+        ..Default::default()
+    };
+    
+    let executor = ShellExecutor::new(config);
+    
+    match executor.get_system_info().await {
+        Ok(info) => {
+            let mut output = String::from("System Information:\n");
+            for (key, value) in info {
+                output.push_str(&format!("{}: {}\n", key, value));
+            }
+            Ok(ToolResult {
+                success: true,
+                output,
+            })
+        }
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: format!("Failed to get system information: {}", e),
         }),
     }
 }

@@ -8,6 +8,7 @@ mod commands;
 mod config;
 mod error;
 mod executor;
+mod shell;
 mod tools;
 mod ui;
 mod utils;

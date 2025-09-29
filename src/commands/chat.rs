@@ -11,6 +11,11 @@ fn tool_call_to_running_string(tool_call: &tools::ToolCall) -> String {
         tools::ToolCall::DeleteFile { path } => format!("Deleting file '{}'...", path),
         tools::ToolCall::ListFiles { path } => format!("Listing files in '{}'...", path),
         tools::ToolCall::Grep { pattern, path } => format!("Searching for '{}' in '{}'...", pattern, path.as_deref().unwrap_or(".")),
+        tools::ToolCall::ExecuteCommand { command, .. } => format!("Executing command '{}'...", command),
+        tools::ToolCall::InstallPackage { package_name } => format!("Installing package '{}'...", package_name),
+        tools::ToolCall::RunTests => "Running project tests...".to_string(),
+        tools::ToolCall::BuildProject => "Building project...".to_string(),
+        tools::ToolCall::GetSystemInfo => "Getting system information...".to_string(),
     }
 }
 
@@ -370,7 +375,13 @@ async fn run_agentic_loop(
 
                 let should_confirm = match agents_md.trust_level.as_str() {
                     "low" => true,
-                    "medium" => plan.iter().any(|call| matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::PatchFile { .. } | tools::ToolCall::DeleteFile { .. })),
+                    "medium" => plan.iter().any(|call| matches!(call, 
+                        tools::ToolCall::WriteFile { .. } | 
+                        tools::ToolCall::PatchFile { .. } | 
+                        tools::ToolCall::DeleteFile { .. } |
+                        tools::ToolCall::ExecuteCommand { .. } |
+                        tools::ToolCall::InstallPackage { .. }
+                    )),
                     "high" => false,
                     _ => true,
                 };
@@ -577,7 +588,14 @@ async fn execute_test_commands(
 ) -> Result<String> {
     let mut results = String::new();
     let should_run_tests = plan.iter().any(|call| {
-        matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::DeleteFile { .. })
+        matches!(call, 
+            tools::ToolCall::WriteFile { .. } | 
+            tools::ToolCall::DeleteFile { .. } |
+            tools::ToolCall::ExecuteCommand { .. } |
+            tools::ToolCall::InstallPackage { .. } |
+            tools::ToolCall::RunTests |
+            tools::ToolCall::BuildProject
+        )
     });
 
     if should_run_tests {
@@ -667,7 +685,13 @@ async fn run_session_chat_loop(
 
                 let should_confirm = match agents_md.trust_level.as_str() {
                     "low" => true,
-                    "medium" => plan.iter().any(|call| matches!(call, tools::ToolCall::WriteFile { .. } | tools::ToolCall::PatchFile { .. } | tools::ToolCall::DeleteFile { .. })),
+                    "medium" => plan.iter().any(|call| matches!(call, 
+                        tools::ToolCall::WriteFile { .. } | 
+                        tools::ToolCall::PatchFile { .. } | 
+                        tools::ToolCall::DeleteFile { .. } |
+                        tools::ToolCall::ExecuteCommand { .. } |
+                        tools::ToolCall::InstallPackage { .. }
+                    )),
                     "high" => false,
                     _ => true,
                 };
