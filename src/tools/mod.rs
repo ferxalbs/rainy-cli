@@ -17,10 +17,16 @@ pub enum ToolCall {
     ListFiles { path: String },
     Grep { pattern: String, path: Option<String> },
     ExecuteCommand { command: String, security_level: Option<String> },
+    ExecuteBatch { commands: Vec<String> },
     InstallPackage { package_name: String },
     RunTests,
     BuildProject,
     GetSystemInfo,
+    GitClone { repo_url: String, path: String },
+    GitStatus,
+    GitAdd { files: Vec<String> },
+    GitCommit { message: String },
+    GitPush,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,25 +43,33 @@ pub async fn execute_tool(
     file_modifications: &mut Vec<FileModification>,
 ) -> Result<ToolResult> {
     match tool_call {
-        ToolCall::ReadFile { path } => read_file(&path).await,
+        ToolCall::ReadFile { path } => read_file(&path, config).await,
         ToolCall::WriteFile { path, content } => {
-            write_file(&path, &content, file_modifications).await
+            write_file(&path, &content, config, file_modifications).await
         }
         ToolCall::PatchFile { path, instructions } => {
             patch_file(&path, &instructions, file_modifications).await
         }
-        ToolCall::DeleteFile { path } => delete_file(&path).await,
+        ToolCall::DeleteFile { path } => delete_file(&path, config).await,
         ToolCall::ListFiles { path } => list_files(&path).await,
         ToolCall::Grep { pattern, path } => grep_files(&pattern, path.as_deref()).await,
-        ToolCall::ExecuteCommand { command, security_level } => {
-            execute_shell_command(&command, security_level.as_deref(), config).await
-        }
-        ToolCall::InstallPackage { package_name } => {
-            install_package(&package_name, config).await
-        }
+        ToolCall::ExecuteCommand {
+            command,
+            security_level,
+        } => execute_shell_command(&command, security_level.as_deref(), config).await,
+        ToolCall::ExecuteBatch { commands } => execute_batch(&commands, config).await,
+        ToolCall::InstallPackage { package_name } => install_package(&package_name, config).await,
         ToolCall::RunTests => run_tests(config).await,
         ToolCall::BuildProject => build_project(config).await,
         ToolCall::GetSystemInfo => get_system_info(config).await,
+        ToolCall::GitClone { repo_url, path } => git_clone(&repo_url, &path, config).await,
+        ToolCall::GitStatus => git_status(config).await,
+        ToolCall::GitAdd { files } => {
+            let file_strs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+            git_add(&file_strs, config).await
+        }
+        ToolCall::GitCommit { message } => git_commit(&message, config).await,
+        ToolCall::GitPush => git_push(config).await,
     }
 }
 
@@ -123,6 +137,102 @@ async fn patch_file(
     }
 }
 
+// Git-related functions
+async fn git_clone(repo_url: &str, path: &str, config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.git_clone(repo_url, path).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
+
+async fn git_status(config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.git_status().await {
+        Ok(output) => Ok(ToolResult {
+            success: true,
+            output,
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
+
+async fn git_add(files: &[&str], config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.git_add(files).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
+
+async fn git_commit(message: &str, config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.git_commit(message).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
+
+async fn git_push(config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.git_push().await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
+        }),
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
+
 async fn grep_files(pattern: &str, path: Option<&str>) -> Result<ToolResult> {
     let search_path = path.unwrap_or(".");
     let mut results = String::new();
@@ -157,15 +267,21 @@ async fn grep_files(pattern: &str, path: Option<&str>) -> Result<ToolResult> {
     }
 }
 
-async fn read_file(path: &str) -> Result<ToolResult> {
-    match fs::read_to_string(path) {
+async fn read_file(path: &str, config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.read_file(path).await {
         Ok(content) => Ok(ToolResult {
             success: true,
             output: content,
         }),
         Err(e) => Ok(ToolResult {
             success: false,
-            output: format!("Failed to read file '{}': {}", path, e),
+            output: e.to_string(),
         }),
     }
 }
@@ -173,6 +289,7 @@ async fn read_file(path: &str) -> Result<ToolResult> {
 async fn write_file(
     path: &str,
     content: &str,
+    config: &Config,
     file_modifications: &mut Vec<FileModification>,
 ) -> Result<ToolResult> {
     let original_content = fs::read_to_string(path).unwrap_or_default();
@@ -193,27 +310,40 @@ async fn write_file(
         lines_added,
         lines_removed,
     });
-    match fs::write(path, content) {
-        Ok(_) => Ok(ToolResult {
-            success: true,
-            output: format!("Successfully wrote to file '{}'.", path),
+
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.create_file(path, content).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
         }),
         Err(e) => Ok(ToolResult {
             success: false,
-            output: format!("Failed to write to file '{}': {}", path, e),
+            output: e.to_string(),
         }),
     }
 }
 
-async fn delete_file(path: &str) -> Result<ToolResult> {
-    match fs::remove_file(path) {
-        Ok(_) => Ok(ToolResult {
-            success: true,
-            output: format!("Successfully deleted file '{}'.", path),
+async fn delete_file(path: &str, config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.delete_file(path).await {
+        Ok(result) => Ok(ToolResult {
+            success: result.success,
+            output: format!("STDOUT: {}\nSTDERR: {}", result.stdout, result.stderr),
         }),
         Err(e) => Ok(ToolResult {
             success: false,
-            output: format!("Failed to delete file '{}': {}", path, e),
+            output: e.to_string(),
         }),
     }
 }
@@ -248,6 +378,36 @@ async fn list_files(path: &str) -> Result<ToolResult> {
 }
 
 // Shell command execution functions
+async fn execute_batch(commands: &[String], config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
+        ..Default::default()
+    };
+    let executor = ShellExecutor::new(shell_config);
+
+    match executor.execute_batch(commands).await {
+        Ok(results) => {
+            let output = results
+                .into_iter()
+                .map(|r| {
+                    format!(
+                        "Command: {}\nSuccess: {}\nSTDOUT: {}\nSTDERR: {}",
+                        r.command, r.success, r.stdout, r.stderr
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join("\n---\n");
+            Ok(ToolResult {
+                success: true,
+                output,
+            })
+        }
+        Err(e) => Ok(ToolResult {
+            success: false,
+            output: e.to_string(),
+        }),
+    }
+}
 
 async fn execute_shell_command(
     command: &str,

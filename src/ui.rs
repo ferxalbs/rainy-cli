@@ -165,15 +165,36 @@ pub fn print_agent_plan_conversationally(plan: &[crate::tools::ToolCall]) {
             crate::tools::ToolCall::PatchFile { path, .. } => format!("Patch the file `{}`", path),
             crate::tools::ToolCall::DeleteFile { path } => format!("Delete the file `{}`", path),
             crate::tools::ToolCall::ListFiles { path } => format!("List the files in `{}`", path),
-            crate::tools::ToolCall::Grep { pattern, path } => format!("Search for `{}` in `{}`", pattern, path.as_deref().unwrap_or(".")),
-            crate::tools::ToolCall::ExecuteCommand { command, security_level } => {
+            crate::tools::ToolCall::Grep { pattern, path } => {
+                format!("Search for `{}` in `{}`", pattern, path.as_deref().unwrap_or("."))
+            }
+            crate::tools::ToolCall::ExecuteCommand {
+                command,
+                security_level,
+            } => {
                 let level = security_level.as_deref().unwrap_or("medium");
                 format!("Execute command `{}` (security: {})", command, level)
-            },
-            crate::tools::ToolCall::InstallPackage { package_name } => format!("Install package `{}`", package_name),
+            }
+            crate::tools::ToolCall::ExecuteBatch { commands } => {
+                format!("Execute a batch of {} commands", commands.len())
+            }
+            crate::tools::ToolCall::InstallPackage { package_name } => {
+                format!("Install package `{}`", package_name)
+            }
             crate::tools::ToolCall::RunTests => "Run project tests".to_string(),
             crate::tools::ToolCall::BuildProject => "Build the project".to_string(),
             crate::tools::ToolCall::GetSystemInfo => "Get system information".to_string(),
+            crate::tools::ToolCall::GitClone { repo_url, path } => {
+                format!("Clone git repository from `{}` into `{}`", repo_url, path)
+            }
+            crate::tools::ToolCall::GitStatus => "Check the git status".to_string(),
+            crate::tools::ToolCall::GitAdd { files } => {
+                format!("Add {} files to git", files.len())
+            }
+            crate::tools::ToolCall::GitCommit { message } => {
+                format!("Commit changes with message: '{}'", message)
+            }
+            crate::tools::ToolCall::GitPush => "Push changes to the remote repository".to_string(),
         };
         println!("  {}. {}", i + 1, message);
     }

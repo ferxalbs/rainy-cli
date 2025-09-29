@@ -1,5 +1,5 @@
 use rainy_cli::shell::{
-    CommandResult, SecurityLevel, ShellConfig, ShellExecutor,
+    command::CommandResult, SecurityLevel, ShellConfig, ShellExecutor,
 };
 use std::time::Duration;
 use tempfile::tempdir;

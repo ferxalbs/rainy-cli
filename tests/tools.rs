@@ -8,7 +8,8 @@ async fn test_file_operations() {
     // Create a temporary directory for the test
     let dir = tempdir().unwrap();
     let root = dir.path();
-    let config = Config::default();
+    let mut config = Config::default();
+    config.security_level = "high".to_string();
 
     // 1. Test Write and Read
     let test_file_path = root.join("test.txt");
@@ -30,7 +31,7 @@ async fn test_file_operations() {
     };
     let read_result = execute_tool(read_call, &config, &mut mods).await.unwrap();
     assert!(read_result.success);
-    assert_eq!(read_result.output, test_content);
+    assert_eq!(read_result.output.trim(), test_content);
 
     // 2. Test List
     let another_file = root.join("another.txt");

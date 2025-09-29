@@ -10,12 +10,26 @@ fn tool_call_to_running_string(tool_call: &tools::ToolCall) -> String {
         tools::ToolCall::PatchFile { path, .. } => format!("Patching file '{}'...", path),
         tools::ToolCall::DeleteFile { path } => format!("Deleting file '{}'...", path),
         tools::ToolCall::ListFiles { path } => format!("Listing files in '{}'...", path),
-        tools::ToolCall::Grep { pattern, path } => format!("Searching for '{}' in '{}'...", pattern, path.as_deref().unwrap_or(".")),
+        tools::ToolCall::Grep { pattern, path } => {
+            format!("Searching for '{}' in '{}'...", pattern, path.as_deref().unwrap_or("."))
+        }
         tools::ToolCall::ExecuteCommand { command, .. } => format!("Executing command '{}'...", command),
-        tools::ToolCall::InstallPackage { package_name } => format!("Installing package '{}'...", package_name),
+        tools::ToolCall::ExecuteBatch { commands } => {
+            format!("Executing batch of {} commands...", commands.len())
+        }
+        tools::ToolCall::InstallPackage { package_name } => {
+            format!("Installing package '{}'...", package_name)
+        }
         tools::ToolCall::RunTests => "Running project tests...".to_string(),
         tools::ToolCall::BuildProject => "Building project...".to_string(),
         tools::ToolCall::GetSystemInfo => "Getting system information...".to_string(),
+        tools::ToolCall::GitClone { repo_url, path } => {
+            format!("Cloning '{}' into '{}'...", repo_url, path)
+        }
+        tools::ToolCall::GitStatus => "Checking git status...".to_string(),
+        tools::ToolCall::GitAdd { files } => format!("Adding {} files to git...", files.len()),
+        tools::ToolCall::GitCommit { message } => format!("Committing with message: '{}'...", message),
+        tools::ToolCall::GitPush => "Pushing changes to remote...".to_string(),
     }
 }
 
