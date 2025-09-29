@@ -312,10 +312,10 @@ pub async fn handle_chat_command(
     // Run the loop with or without a session
     if use_session {
         if let Some(session_id) = session_id {
-            run_session_chat_loop(&mut messages, &agent, &session_id, &session_manager).await?;
+            run_session_chat_loop(&mut messages, &agent, &session_id, &session_manager, config).await?;
         }
     } else {
-        run_agentic_loop(&mut messages, &agent).await?;
+        run_agentic_loop(&mut messages, &agent, config).await?;
     }
 
     Ok(())
@@ -326,6 +326,7 @@ use walkdir::WalkDir;
 async fn run_agentic_loop(
     messages: &mut Vec<executor::ChatMessage>,
     agent: &executor::AgenticExecutor,
+    config: &Config,
 ) -> Result<()> {
     let agents_md_content = agents_md::load_hierarchical_agents_md().unwrap_or_default();
     let agents_md = agents_md::parse_agents_md(&agents_md_content);
@@ -398,7 +399,7 @@ async fn run_agentic_loop(
                     let mut results: Vec<crate::tools::ToolResult> = Vec::new();
                     for tool_call in &plan {
                         ui::print_info(&tool_call_to_running_string(tool_call));
-                        let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
+                        let result = tools::execute_tool(tool_call.clone(), config, &mut file_modifications)
                             .await
                             .map_err(|e| crate::error::CliError::api_error(e.to_string()))?;
                         results.push(result);
@@ -577,7 +578,7 @@ pub async fn handle_chat_with_session(
         }
     }
 
-    run_session_chat_loop(&mut messages, &agent, session_id, session_manager).await?;
+    run_session_chat_loop(&mut messages, &agent, session_id, session_manager, config).await?;
 
     Ok(())
 }
@@ -636,6 +637,7 @@ async fn run_session_chat_loop(
     agent: &executor::AgenticExecutor,
     session_id: &str,
     session_manager: &SessionManager,
+    config: &Config,
 ) -> Result<()> {
     let agents_md_content = agents_md::load_hierarchical_agents_md().unwrap_or_default();
     let agents_md = agents_md::parse_agents_md(&agents_md_content);
@@ -708,7 +710,7 @@ async fn run_session_chat_loop(
                     let mut results: Vec<crate::tools::ToolResult> = Vec::new();
                     for tool_call in &plan {
                         ui::print_info(&tool_call_to_running_string(tool_call));
-                        let result = tools::execute_tool(tool_call.clone(), &mut file_modifications)
+                        let result = tools::execute_tool(tool_call.clone(), config, &mut file_modifications)
                             .await
                             .map_err(|e| crate::error::CliError::api_error(e.to_string()))?;
                         results.push(result);

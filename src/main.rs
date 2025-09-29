@@ -42,6 +42,10 @@ struct Cli {
     /// Output in JSON format
     #[arg(long, global = true)]
     json: bool,
+
+    /// Set the security level for shell commands (low, medium, high)
+    #[arg(long, global = true)]
+    security_level: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -266,6 +270,10 @@ async fn main() -> Result<()> {
 
     if let Some(model) = cli.model {
         config.default_model = model;
+    }
+
+    if let Some(level) = cli.security_level {
+        config.security_level = level;
     }
 
     // Show welcome screen for interactive commands

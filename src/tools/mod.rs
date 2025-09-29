@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+use crate::config::Config;
 use walkdir::WalkDir;
 use crate::shell::{ShellExecutor, ShellConfig, SecurityLevel};
 
@@ -32,6 +33,7 @@ use crate::utils::diff::FileModification;
 
 pub async fn execute_tool(
     tool_call: ToolCall,
+    config: &Config,
     file_modifications: &mut Vec<FileModification>,
 ) -> Result<ToolResult> {
     match tool_call {
@@ -46,14 +48,14 @@ pub async fn execute_tool(
         ToolCall::ListFiles { path } => list_files(&path).await,
         ToolCall::Grep { pattern, path } => grep_files(&pattern, path.as_deref()).await,
         ToolCall::ExecuteCommand { command, security_level } => {
-            execute_shell_command(&command, security_level.as_deref()).await
+            execute_shell_command(&command, security_level.as_deref(), config).await
         }
         ToolCall::InstallPackage { package_name } => {
-            install_package(&package_name).await
+            install_package(&package_name, config).await
         }
-        ToolCall::RunTests => run_tests().await,
-        ToolCall::BuildProject => build_project().await,
-        ToolCall::GetSystemInfo => get_system_info().await,
+        ToolCall::RunTests => run_tests(config).await,
+        ToolCall::BuildProject => build_project(config).await,
+        ToolCall::GetSystemInfo => get_system_info(config).await,
     }
 }
 
@@ -247,18 +249,22 @@ async fn list_files(path: &str) -> Result<ToolResult> {
 
 // Shell command execution functions
 
-async fn execute_shell_command(command: &str, security_level: Option<&str>) -> Result<ToolResult> {
+async fn execute_shell_command(
+    command: &str,
+    security_level: Option<&str>,
+    config: &Config,
+) -> Result<ToolResult> {
     let security_level = security_level
-        .map(|s| SecurityLevel::from_str(s))
-        .unwrap_or(SecurityLevel::Medium);
-    
-    let config = ShellConfig {
+        .map(SecurityLevel::from_str)
+        .unwrap_or_else(|| SecurityLevel::from_str(&config.security_level));
+
+    let shell_config = ShellConfig {
         security_level,
         ..Default::default()
     };
-    
-    let executor = ShellExecutor::new(config);
-    
+
+    let executor = ShellExecutor::new(shell_config);
+
     match executor.execute(command).await {
         Ok(result) => Ok(ToolResult {
             success: result.success,
@@ -278,14 +284,14 @@ async fn execute_shell_command(command: &str, security_level: Option<&str>) -> R
     }
 }
 
-async fn install_package(package_name: &str) -> Result<ToolResult> {
-    let config = ShellConfig {
-        security_level: SecurityLevel::Medium,
+async fn install_package(package_name: &str, config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
         ..Default::default()
     };
-    
-    let executor = ShellExecutor::new(config);
-    
+
+    let executor = ShellExecutor::new(shell_config);
+
     match executor.install_package(package_name).await {
         Ok(result) => Ok(ToolResult {
             success: result.success,
@@ -309,14 +315,14 @@ async fn install_package(package_name: &str) -> Result<ToolResult> {
     }
 }
 
-async fn run_tests() -> Result<ToolResult> {
-    let config = ShellConfig {
-        security_level: SecurityLevel::High, // Tests are generally safe
+async fn run_tests(config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
         ..Default::default()
     };
-    
-    let executor = ShellExecutor::new(config);
-    
+
+    let executor = ShellExecutor::new(shell_config);
+
     match executor.run_tests().await {
         Ok(result) => Ok(ToolResult {
             success: result.success,
@@ -339,14 +345,14 @@ async fn run_tests() -> Result<ToolResult> {
     }
 }
 
-async fn build_project() -> Result<ToolResult> {
-    let config = ShellConfig {
-        security_level: SecurityLevel::High, // Building is generally safe
+async fn build_project(config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
         ..Default::default()
     };
-    
-    let executor = ShellExecutor::new(config);
-    
+
+    let executor = ShellExecutor::new(shell_config);
+
     match executor.build_project().await {
         Ok(result) => Ok(ToolResult {
             success: result.success,
@@ -369,14 +375,14 @@ async fn build_project() -> Result<ToolResult> {
     }
 }
 
-async fn get_system_info() -> Result<ToolResult> {
-    let config = ShellConfig {
-        security_level: SecurityLevel::High, // System info is safe
+async fn get_system_info(config: &Config) -> Result<ToolResult> {
+    let shell_config = ShellConfig {
+        security_level: SecurityLevel::from_str(&config.security_level),
         ..Default::default()
     };
-    
-    let executor = ShellExecutor::new(config);
-    
+
+    let executor = ShellExecutor::new(shell_config);
+
     match executor.get_system_info().await {
         Ok(info) => {
             let mut output = String::from("System Information:\n");

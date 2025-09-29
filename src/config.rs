@@ -14,6 +14,7 @@ pub struct Config {
     pub temperature: Option<f32>,
     pub auto_save: bool,
     pub verbose: bool,
+    pub security_level: String,
 }
 
 impl Default for Config {
@@ -27,6 +28,7 @@ impl Default for Config {
             temperature: Some(0.7),
             auto_save: true,
             verbose: false,
+            security_level: "medium".to_string(),
         }
     }
 }
